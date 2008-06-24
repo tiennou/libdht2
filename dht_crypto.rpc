@@ -1,0 +1,40 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <sha1.h>
+
+struct dht_crypto_sig {
+	bytes sig = 1;
+	bytes pkid[SHA1_DIGESTSIZE] = 2;	// signed by
+}
+
+struct dht_crypto_pkauth {
+	bytes pkid[SHA1_DIGESTSIZE] = 1;
+
+	int serial_number = 2;			// monotonically increasing
+
+	// capabilities
+	int may_join = 3;			// may join the DHT
+	optional int may_admit = 4;		// may admit new keys
+}
+
+struct dht_crypto_pkinfo {
+	// openssl public key - will be set once owner has been
+	// admitted.  Once it's there it cannot be overwritten by somebody
+	// else.  The binding is due to the hash of the public key in the
+        // signed section of this entry.
+	bytes pk = 1;
+
+	int serial_number = 2;
+
+	optional string name = 3;
+}
+
+struct dht_crypto_store {
+	struct[dht_crypto_pkauth] pkauth = 1;
+	struct[dht_crypto_sig] pkauth_sig = 2;	// signature of pkauth data
+
+	optional struct[dht_crypto_pkinfo] pkinfo = 3;	// pk data
+	optional struct[dht_crypto_sig] pkinfo_sig = 4;  // self-signed
+}

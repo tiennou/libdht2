@@ -1,0 +1,50 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <sha1.h>
+#include <err.h>
+#include <dnet.h>
+
+struct dht_group_pkt {
+  bytes src_id[SHA1_DIGESTSIZE] = 1;
+  bytes dst_id[SHA1_DIGESTSIZE] = 2;
+  bytes rpc_id[SHA1_DIGESTSIZE] = 3;
+
+  optional struct[dht_group_msg] message = 4;
+  optional bytes compress = 5;
+}
+
+struct dht_group_msg {
+  optional struct[dht_group_msg_join] join = 1;
+  optional struct[dht_group_msg_privmsg] privmsg = 2;
+  optional struct[dht_group_msg_part] part = 3;
+  optional struct[dht_group_msg_reply] reply = 4;
+}
+
+struct dht_group_msg_join {
+  string channel_name = 1;
+}
+
+struct dht_group_msg_reply {
+  string channel_name = 1;
+
+  int error_code = 2;
+
+  string error_reason = 3;
+}
+
+struct dht_group_msg_privmsg {
+  bytes src_id[SHA1_DIGESTSIZE] = 1;
+
+  int up = 2;	// are we going up or down the tree
+
+  int seqnr = 3;
+  string channel_name = 4;
+
+  bytes message = 5;
+}
+
+struct dht_group_msg_part {
+  string channel_name = 1;
+}
