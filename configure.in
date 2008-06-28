@@ -68,6 +68,9 @@ AC_ARG_WITH(libcrypto,
 [ if test -f ${prefix}/include/ssl/sha.h; then
      SSLINC="-I${prefix}/include"
      SSLLIB="-L${prefix}/lib -lcrypto"
+  elif test -f ${prefix}/include/openssl/sha.h; then
+     SSLINC="-I${prefix}/include"
+     SSLLIB="-L${prefix}/lib -lcrypto"
   elif test -f ${prefix}/ssl/include/openssl/sha.h; then
      SSLINC="-I${prefix}/ssl/include"
      SSLLIB="-L${prefix}/ssl/lib -lcrypto"

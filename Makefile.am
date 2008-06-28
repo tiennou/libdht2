@@ -59,4 +59,6 @@ dht_group_message.gen.c dht_group_message.gen.h: dht_group_message.rpc
 dht_crypto.gen.c dht_crypto.gen.h: dht_crypto.rpc
 	event_rpcgen.py dht_crypto.rpc
 
+CLEANFILES = dht_group_message.gen.c dht_group_message.gen.h dht_crypto.gen.c \
+	dht_crypto.gen.h
 DISTCLEANFILES = *~ test/*~
