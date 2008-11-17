@@ -18,19 +18,19 @@ typedef struct {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-void SHA1Transform(u_int32_t [5], const unsigned char [64])
+void SHA1_Transform(u_int32_t [5], const unsigned char [64])
 		__attribute__((__bounded__(__minbytes__,1,5)))
 		__attribute__((__bounded__(__minbytes__,2,64)));
-void SHA1Init(SHA1_CTX *);
-void SHA1Update(SHA1_CTX *, const unsigned char *, unsigned int)
+void SHA1_Init(SHA1_CTX *);
+void SHA1_Update(SHA1_CTX *, const unsigned char *, unsigned int)
 		__attribute__((__bounded__(__string__,2,3)));
-void SHA1Final(unsigned char [20], SHA1_CTX *)
+void SHA1_Final(unsigned char [20], SHA1_CTX *)
 		__attribute__((__bounded__(__minbytes__,1,20)));
-char *SHA1End(SHA1_CTX *, char *)
+char *SHA1_End(SHA1_CTX *, char *)
 		__attribute__((__bounded__(__minbytes__,2,41)));
-char *SHA1File(char *, char *)
+char *SHA1_File(char *, char *)
 		__attribute__((__bounded__(__minbytes__,2,41)));
-char *SHA1Data(const unsigned char *, size_t, char *)
+char *SHA1_Data(const unsigned char *, size_t, char *)
 		__attribute__((__bounded__(__string__,1,2)))
 		__attribute__((__bounded__(__minbytes__,3,41)));
 __END_DECLS

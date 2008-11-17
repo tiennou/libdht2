@@ -232,9 +232,9 @@ Test_Six(struct kad_node *node, char *text)
 	
 	SHA1_CTX ctx;
 
-	SHA1Init(&ctx);
-	SHA1Update(&ctx, text, strlen(text) + 1);
-	SHA1Final(digest, &ctx);
+	SHA1_Init(&ctx);
+	SHA1_Update(&ctx, text, strlen(text) + 1);
+	SHA1_Final(digest, &ctx);
 
 	assert(kad_impl_store(node, digest, text, strlen(text) + 1,
 		   Test_Six_Cb, NULL) != -1);
@@ -263,9 +263,9 @@ Test_Seven(struct kad_node *node, char *text)
 	
 	SHA1_CTX ctx;
 
-	SHA1Init(&ctx);
-	SHA1Update(&ctx, text, strlen(text) + 1);
-	SHA1Final(digest, &ctx);
+	SHA1_Init(&ctx);
+	SHA1_Update(&ctx, text, strlen(text) + 1);
+	SHA1_Final(digest, &ctx);
 
 	assert(kad_impl_find_value(node, digest, Test_Seven_Cb, NULL) != -1);
 

@@ -18,7 +18,7 @@
 static char rcsid[] = "$OpenBSD: sha1.c,v 1.12 2003/07/21 20:37:08 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
 
-#define SHA1HANDSOFF		/* Copies data before messing with it. */
+#define SHA1_HANDSOFF		/* Copies data before messing with it. */
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -116,12 +116,12 @@ do_R4(u_int32_t *a, u_int32_t *b, u_int32_t *c, u_int32_t *d, u_int32_t *e, CHAR
  * Hash a single 512-bit block. This is the core of the algorithm.
  */
 void
-SHA1Transform(u_int32_t state[5], const u_char buffer[64])
+SHA1_Transform(u_int32_t state[5], const u_char buffer[64])
 {
     u_int32_t a, b, c, d, e;
     CHAR64LONG16 *block;
 
-#ifdef SHA1HANDSOFF
+#ifdef SHA1_HANDSOFF
     CHAR64LONG16 workspace;
     block = &workspace;
     (void)memcpy(block, buffer, 64);
@@ -178,10 +178,10 @@ SHA1Transform(u_int32_t state[5], const u_char buffer[64])
 
 
 /*
- * SHA1Init - Initialize new context
+ * SHA1_Init - Initialize new context
  */
 void
-SHA1Init(SHA1_CTX *context)
+SHA1_Init(SHA1_CTX *context)
 {
 
     /* SHA1 initialization constants */
@@ -198,7 +198,7 @@ SHA1Init(SHA1_CTX *context)
  * Run your data through this.
  */
 void
-SHA1Update(SHA1_CTX *context, const u_char *data, u_int len)
+SHA1_Update(SHA1_CTX *context, const u_char *data, u_int len)
 {
     u_int i, j;
 
@@ -208,9 +208,9 @@ SHA1Update(SHA1_CTX *context, const u_char *data, u_int len)
     j = (j >> 3) & 63;
     if ((j + len) > 63) {
 	(void)memcpy(&context->buffer[j], data, (i = 64-j));
-	SHA1Transform(context->state, context->buffer);
+	SHA1_Transform(context->state, context->buffer);
 	for ( ; i + 63 < len; i += 64)
-	    SHA1Transform(context->state, &data[i]);
+	    SHA1_Transform(context->state, &data[i]);
 	j = 0;
     } else {
 	i = 0;
@@ -223,7 +223,7 @@ SHA1Update(SHA1_CTX *context, const u_char *data, u_int len)
  * Add padding and return the message digest.
  */
 void
-SHA1Final(u_char digest[20], SHA1_CTX *context)
+SHA1_Final(u_char digest[20], SHA1_CTX *context)
 {
     u_int i;
     u_char finalcount[8];
@@ -232,10 +232,10 @@ SHA1Final(u_char digest[20], SHA1_CTX *context)
 	finalcount[i] = (u_char)((context->count[(i >= 4 ? 0 : 1)]
 	 >> ((3-(i & 3)) * 8) ) & 255);	 /* Endian independent */
     }
-    SHA1Update(context, (u_char *)"\200", 1);
+    SHA1_Update(context, (u_char *)"\200", 1);
     while ((context->count[0] & 504) != 448)
-	SHA1Update(context, (u_char *)"\0", 1);
-    SHA1Update(context, finalcount, 8);  /* Should cause a SHA1Transform() */
+	SHA1_Update(context, (u_char *)"\0", 1);
+    SHA1_Update(context, finalcount, 8);  /* Should cause a SHA1Transform() */
 
     if (digest) {
 	for (i = 0; i < 20; i++)

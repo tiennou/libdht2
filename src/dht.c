@@ -295,9 +295,9 @@ dht_read_cb(int fd, short what, void *arg)
 	}
 
 	/* Let's verify the signature - this is going to be authed later */
-	SHA1Init(&ctx);
-	SHA1Update(&ctx, payload, payload_len);
-	SHA1Final(digest, &ctx);
+	SHA1_Init(&ctx);
+	SHA1_Update(&ctx, payload, payload_len);
+	SHA1_Final(digest, &ctx);
 
 	if (memcmp(digest, hdr->signature, sizeof(digest))) {
 		warnx("%s: bad signature from %s", __func__, addr_ntoa(&addr));
@@ -331,9 +331,9 @@ dht_write_cb(int fd, short what, void *arg)
 	sin.sin_port = htons(tmp->port);
 
 	/* Create the signature */
-	SHA1Init(&ctx);
-	SHA1Update(&ctx, tmp->data, tmp->datlen);
-	SHA1Final(pkthdr.signature, &ctx);
+	SHA1_Init(&ctx);
+	SHA1_Update(&ctx, tmp->data, tmp->datlen);
+	SHA1_Final(pkthdr.signature, &ctx);
 
 	pkthdr.version = DHT_VERSION;
 	pkthdr.type = tmp->type;

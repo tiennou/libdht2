@@ -1828,9 +1828,9 @@ kad_dht_impl_lookup(void *node_data, u_char *id, size_t idlen,
 		memcpy(search_id, id, sizeof(search_id));
 	} else {
 		SHA1_CTX ctx;
-		SHA1Init(&ctx);
-		SHA1Update(&ctx, id, idlen);
-		SHA1Final(search_id, &ctx);
+		SHA1_Init(&ctx);
+		SHA1_Update(&ctx, id, idlen);
+		SHA1_Final(search_id, &ctx);
 	}
 
 	TAILQ_INIT(&nodes);
@@ -1888,9 +1888,9 @@ kad_dht_impl_find_id(void *node_data, u_char *id, size_t idlen,
 		memcpy(search_id, id, sizeof(search_id));
 	} else {
 		SHA1_CTX ctx;
-		SHA1Init(&ctx);
-		SHA1Update(&ctx, id, idlen);
-		SHA1Final(search_id, &ctx);
+		SHA1_Init(&ctx);
+		SHA1_Update(&ctx, id, idlen);
+		SHA1_Final(search_id, &ctx);
 	}
 
 	fid = kad_node_id_find(node, search_id);
@@ -1938,9 +1938,9 @@ kad_dht_impl_store(void *node_data, u_char *keyid, size_t keylen,
 		memcpy(hashed_keyid, keyid, sizeof(hashed_keyid));
 	} else {
 		SHA1_CTX ctx;
-		SHA1Init(&ctx);
-		SHA1Update(&ctx, keyid, keylen);
-		SHA1Final(hashed_keyid, &ctx);
+		SHA1_Init(&ctx);
+		SHA1_Update(&ctx, keyid, keylen);
+		SHA1_Final(hashed_keyid, &ctx);
 	}
 
 	return (kad_impl_store(node, hashed_keyid, value, vallen, cb, cb_arg));
@@ -1974,9 +1974,9 @@ kad_dht_impl_find(void *node_data, u_char *keyid, size_t keylen,
 		memcpy(hashed_keyid, keyid, sizeof(hashed_keyid));
 	} else {
 		SHA1_CTX ctx;
-		SHA1Init(&ctx);
-		SHA1Update(&ctx, keyid, keylen);
-		SHA1Final(hashed_keyid, &ctx);
+		SHA1_Init(&ctx);
+		SHA1_Update(&ctx, keyid, keylen);
+		SHA1_Final(hashed_keyid, &ctx);
 	}
 
 	kv = dht_find_keyval(node->storage, hashed_keyid, sizeof(hashed_keyid));
