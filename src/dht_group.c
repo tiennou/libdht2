@@ -37,7 +37,7 @@
 #include <sys/tree.h>
 #include <sys/time.h>
 
-#include <sha1.h>
+#include <openssl/sha.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,7 +94,7 @@ int
 dht_seqnr_compare(const struct dht_group_seqnr *a,
     const struct dht_group_seqnr *b)
 {
-	return (memcmp(a->id, b->id, SHA1_DIGESTSIZE));
+	return (memcmp(a->id, b->id, SHA_DIGEST_LENGTH));
 }
 
 SPLAY_PROTOTYPE(group_seqnr_tree, dht_group_seqnr, node, dht_seqnr_compare);
@@ -394,7 +394,7 @@ dht_group_read_cb(struct addr *addr, uint16_t port,
 
 	EVTAG_GET(pkt, dst_id, &dst_id);
 
-	if (memcmp(dst_id, dht_myid(group->dht), SHA1_DIGESTSIZE)) {
+	if (memcmp(dst_id, dht_myid(group->dht), SHA_DIGEST_LENGTH)) {
 		DFPRINTF(3,
 		    (stderr,
 			"%s: received packet for %s which is not me\n",
@@ -506,7 +506,7 @@ dht_group_new(struct dht_node *dht)
 {
 	struct dht_group *group = NULL;
 	struct dht_group_channel *channel = NULL;
-	u_char myidasc[SHA1_DIGESTSIZE*2+3];
+	u_char myidasc[SHA_DIGEST_LENGTH*2+3];
 
 	if ((group = calloc(1, sizeof(struct dht_group))) == NULL)
 		err(1, "%s: calloc", __func__);
@@ -529,7 +529,7 @@ dht_group_new(struct dht_node *dht)
 	SPLAY_INIT(&group->root_seqnr);
 	TAILQ_INIT(&group->head_seqnr);
 
-	dht_bits_bin2hex(myidasc, dht_myid(group->dht), SHA1_DIGESTSIZE);
+	dht_bits_bin2hex(myidasc, dht_myid(group->dht), SHA_DIGEST_LENGTH);
 
 	/*
 	 * Subscribe ourselves to our own channel.  Nobody else can join
@@ -1621,12 +1621,12 @@ int
 dht_group_lookup(struct dht_node *node, u_char *channel_name,
     struct dht_node_id **ids, size_t *numids)
 {
-	u_char digest[SHA1_DIGESTSIZE];
+	u_char digest[SHA_DIGEST_LENGTH];
 	u_char *p = channel_name;
 	size_t plen = strlen(channel_name);
 	
 	if (strncasecmp(channel_name, "0x", 2) == 0 &&
-	    plen == SHA1_DIGESTSIZE*2 + 2) {
+	    plen == SHA_DIGEST_LENGTH*2 + 2) {
 		dht_bits_bin2hex(channel_name, digest, sizeof(digest));
 		p = digest;
 		plen = sizeof(digest);

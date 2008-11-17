@@ -71,7 +71,7 @@ verify(struct kad_bucket *bucket)
 		int count = 0;
 		TAILQ_FOREACH(tmp, &bucket->nodes, next) {
 			int diff = dht_bits_compare(tmp->id, first->id,
-			    SHA1_DIGESTSIZE);
+			    SHA_DIGEST_LENGTH);
 			count++;
 			if (!diff)
 				continue;

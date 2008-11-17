@@ -31,27 +31,27 @@
 #ifndef _DHT_KADMELIA_
 #define _DHT_KADMELIA_
 
-#include <sha1.h>
+#include <openssl/sha.h>
 #include "dht.h"
 
 /* Kadmelia packet format */
 
 struct kad_pkt {
-	uint8_t src_id[SHA1_DIGESTSIZE];
-	uint8_t dst_id[SHA1_DIGESTSIZE];
+	uint8_t src_id[SHA_DIGEST_LENGTH];
+	uint8_t dst_id[SHA_DIGEST_LENGTH];
 
-	uint8_t rpc_id[SHA1_DIGESTSIZE];
+	uint8_t rpc_id[SHA_DIGEST_LENGTH];
 	uint8_t rpc_command;
 } __attribute__((__packed__));
 
 struct kad_pkt_find_node {
-	uint8_t node_id[SHA1_DIGESTSIZE];
+	uint8_t node_id[SHA_DIGEST_LENGTH];
 } __attribute__((__packed__));
 
 struct kad_pkt_node_reply {
 	uint8_t address[4];
 	uint16_t port;
-	uint8_t node_id[SHA1_DIGESTSIZE];
+	uint8_t node_id[SHA_DIGEST_LENGTH];
 } __attribute__((__packed__));
 
 #define DHT_KAD_RPC_PING	0x0001
@@ -81,7 +81,7 @@ struct kad_node_id {
 	struct addr addr;
 	uint16_t port;
 	
-	u_char id[SHA1_DIGESTSIZE];
+	u_char id[SHA_DIGEST_LENGTH];
 	u_char *diff;			/* Allows us to use a diff tree */
 
 #define KAD_NODE_ID_DEAD	0x0001
@@ -137,7 +137,7 @@ struct kad_ctx_store {
 	struct kad_node *node;
 	struct kad_node_id id;
 
-	u_char keyid[SHA1_DIGESTSIZE];
+	u_char keyid[SHA_DIGEST_LENGTH];
 	u_char *val;
 	size_t vallen;
 
@@ -180,7 +180,7 @@ struct kad_ctx_refresh {
 /* Context for a node lookup */
 
 struct kad_ctx_lookup {
-	u_char search_id[SHA1_DIGESTSIZE];
+	u_char search_id[SHA_DIGEST_LENGTH];
 
 	struct kad_node *parent;
 

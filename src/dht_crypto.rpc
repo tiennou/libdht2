@@ -2,15 +2,15 @@
 #include "config.h"
 #endif
 
-#include <sha1.h>
+#include <openssl/sha.h>
 
 struct dht_crypto_sig {
 	bytes sig = 1;
-	bytes pkid[SHA1_DIGESTSIZE] = 2;	// signed by
+	bytes pkid[SHA_DIGEST_LENGTH] = 2;	// signed by
 }
 
 struct dht_crypto_pkauth {
-	bytes pkid[SHA1_DIGESTSIZE] = 1;
+	bytes pkid[SHA_DIGEST_LENGTH] = 1;
 
 	int serial_number = 2;			// monotonically increasing
 

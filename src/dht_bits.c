@@ -35,7 +35,7 @@
 #include <sys/types.h>
 
 #include <ctype.h>
-#include <sha1.h>
+#include <openssl/sha.h>
 #include <string.h>
 
 /* Globals */
@@ -128,7 +128,7 @@ dht_byte_compare(u_char *a, size_t alen, u_char *b, size_t blen)
 {
 	int i;
 
-	for (i = 0; i < SHA1_DIGESTSIZE && i < alen && i < blen; ++i) {
+	for (i = 0; i < SHA_DIGEST_LENGTH && i < alen && i < blen; ++i) {
 		if (a[i] < b[i])
 			return (-1);
 		if (a[i] > b[i])
@@ -148,7 +148,7 @@ dht_kademlia_compare(u_char *a, u_char *b)
 {
 	int i;
 
-	for (i = 0; i < SHA1_DIGESTSIZE; ++i) {
+	for (i = 0; i < SHA_DIGEST_LENGTH; ++i) {
 		if (a[i] < b[i])
 			return (-1);
 		if (a[i] > b[i])
@@ -163,7 +163,7 @@ dht_kademlia_xor(u_char *dst, u_char *a, u_char *b)
 {
 	int i;
 
-	for (i = 0; i < SHA1_DIGESTSIZE; ++i) {
+	for (i = 0; i < SHA_DIGEST_LENGTH; ++i) {
 		dst[i] = a[i] ^ b[i];
 	}
 	
@@ -173,7 +173,7 @@ dht_kademlia_xor(u_char *dst, u_char *a, u_char *b)
 u_char *
 dht_kademlia_distance(u_char *a, u_char *b)
 {
-	static u_char diff[2][SHA1_DIGESTSIZE];
+	static u_char diff[2][SHA_DIGEST_LENGTH];
 	static int where;
 	u_char *p = diff[++where % 2];
 

@@ -1,3 +1,6 @@
+AM_CFLAGS= \
+	-I. -I$(top_srcdir) -I$(top_srcdir)/compat
+
 EXTRA_DIST = dht_group_message.rpc dht_crypto.rpc
 
 lib_LTLIBRARIES = libdht.la
@@ -12,10 +15,6 @@ libdht_la_LDFLAGS = -version-info 0:1:0
 
 include_HEADERS = dht.h
 
-AM_CFLAGS = -Wall -O0 -g -DDEBUG -I$(top_srcdir)/compat
-AM_LDFLAGS = @OPENSSL_LIBS@ @LIBEVENT_LIBS@
-AM_CPPFLAGS = ${AM_CFLAGS}
-
 libdht_la_MANS = dht.3
 
 dht_group_message.gen.c dht_group_message.gen.h: dht_group_message.rpc
@@ -26,4 +25,5 @@ dht_crypto.gen.c dht_crypto.gen.h: dht_crypto.rpc
 
 CLEANFILES = dht_group_message.gen.c dht_group_message.gen.h dht_crypto.gen.c \
 	dht_crypto.gen.h
+
 DISTCLEANFILES = *~

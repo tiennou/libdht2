@@ -30,7 +30,7 @@
 #ifndef _DHT_CRYPTO_
 #define _DHT_CRYPTO_
 
-#include <sha1.h>
+#include <openssl/sha.h>
 
 #define RSA_KEY_BITS	1024
 #define RSA_KEY_E	37
@@ -42,7 +42,7 @@ enum keytype {
 struct dht_pkinfo {
 	SPLAY_ENTRY(dht_pkinfo) node;
 
-	u_char digest[SHA1_DIGESTSIZE];
+	u_char digest[SHA_DIGEST_LENGTH];
 	RSA *public_key;
 	struct dht_crypto_pkinfo *pkinfo;
 };

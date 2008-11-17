@@ -42,7 +42,7 @@
 #include <string.h>
 #include <err.h>
 #include <assert.h>
-#include <sha1.h>
+#include <openssl/sha.h>
 
 #include <event.h>
 #include <dnet.h>
@@ -110,7 +110,7 @@ Test_Two_Find_Node_Reply(struct dht_rpc *rpc, struct evbuffer *evbuf, void *arg)
 	for (i = 0; i < remaining / sizeof(*pkt); ++i) {
 		struct addr addr;
 		int distance = dht_bits_compare(pkt[i].node_id,
-		    node->myself.id, SHA1_DIGESTSIZE);
+		    node->myself.id, SHA_DIGEST_LENGTH);
 		
 		/* Make sure that we are increasing in distance */
 		if (last_distance)
@@ -228,9 +228,9 @@ Test_Six_Cb(int res, void *arg)
 void
 Test_Six(struct kad_node *node, char *text)
 {
-	u_char digest[SHA1_DIGESTSIZE];
+	u_char digest[SHA_DIGEST_LENGTH];
 	
-	SHA1_CTX ctx;
+	SHA_CTX ctx;
 
 	SHA1_Init(&ctx);
 	SHA1_Update(&ctx, text, strlen(text) + 1);
@@ -259,9 +259,9 @@ Test_Seven_Cb(u_char *data, size_t datlen, void *arg)
 void
 Test_Seven(struct kad_node *node, char *text)
 {
-	u_char digest[SHA1_DIGESTSIZE];
+	u_char digest[SHA_DIGEST_LENGTH];
 	
-	SHA1_CTX ctx;
+	SHA_CTX ctx;
 
 	SHA1_Init(&ctx);
 	SHA1_Update(&ctx, text, strlen(text) + 1);

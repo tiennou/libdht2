@@ -42,7 +42,7 @@
 #include <string.h>
 #include <err.h>
 #include <assert.h>
-#include <sha1.h>
+#include <openssl/sha.h>
 #include <assert.h>
 
 #include <event.h>

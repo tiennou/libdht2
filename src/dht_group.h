@@ -48,7 +48,7 @@
 #ifndef _DHT_GROUP_
 #define _DHT_GROUP_
 
-#include <sha1.h>
+#include <openssl/sha.h>
 
 /* Compress network packets - undefine to disable */
 #define DHT_GROUP_USE_COMPRESSION	1
@@ -75,7 +75,7 @@ enum group_errors {
 struct dht_group_seqnr {
 	SPLAY_ENTRY(dht_group_seqnr) node;
 	TAILQ_ENTRY(dht_group_seqnr) next;
-	u_char id[SHA1_DIGESTSIZE];
+	u_char id[SHA_DIGEST_LENGTH];
 	uint32_t last_seen;
 	uint32_t current_window;
 

@@ -44,7 +44,7 @@
 #include <string.h>
 #include <err.h>
 #include <assert.h>
-#include <sha1.h>
+#include <openssl/sha.h>
 #include <assert.h>
 
 #include <event.h>
@@ -122,7 +122,7 @@ int
 main(int argc, char **argv)
 {
 	extern int debug;
-	u_char digest[SHA1_DIGESTSIZE];
+	u_char digest[SHA_DIGEST_LENGTH];
 	RSA *mykey = NULL, *otherkey;
 
 	/* Some simple debugging */

@@ -46,7 +46,7 @@
 #include <string.h>
 #include <err.h>
 #include <assert.h>
-#include <sha1.h>
+#include <openssl/sha.h>
 
 #include <event.h>
 #include <dnet.h>
@@ -64,7 +64,7 @@ TestOne(struct dht_storage *dhs)
 	char *datap;
 	size_t datalen;
 	struct dht_keyvalue *keyval, *found;
-	u_char digest[SHA1_DIGESTSIZE];
+	u_char digest[SHA_DIGEST_LENGTH];
 	RSA *mykey = NULL;
 	BIO *bp = NULL;
 

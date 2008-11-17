@@ -2,14 +2,14 @@
 #include "config.h"
 #endif
 
-#include <sha1.h>
+#include <openssl/sha.h>
 #include <err.h>
 #include <dnet.h>
 
 struct dht_group_pkt {
-  bytes src_id[SHA1_DIGESTSIZE] = 1;
-  bytes dst_id[SHA1_DIGESTSIZE] = 2;
-  bytes rpc_id[SHA1_DIGESTSIZE] = 3;
+  bytes src_id[SHA_DIGEST_LENGTH] = 1;
+  bytes dst_id[SHA_DIGEST_LENGTH] = 2;
+  bytes rpc_id[SHA_DIGEST_LENGTH] = 3;
 
   optional struct[dht_group_msg] message = 4;
   optional bytes compress = 5;
@@ -35,7 +35,7 @@ struct dht_group_msg_reply {
 }
 
 struct dht_group_msg_privmsg {
-  bytes src_id[SHA1_DIGESTSIZE] = 1;
+  bytes src_id[SHA_DIGEST_LENGTH] = 1;
 
   int up = 2;	// are we going up or down the tree
 

@@ -37,7 +37,7 @@
 #include <sys/tree.h>
 #include <sys/time.h>
 
-#include <sha1.h>
+#include <openssl/sha.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -278,7 +278,7 @@ dht_crypto_authorize_key(RSA *other_key, RSA *my_key, int serial)
 	struct dht_crypto_pkauth *pkauth;
 	struct dht_crypto_sig *sig;
 	struct evbuffer *tmp = evbuffer_new();
-	u_char pkid[SHA1_DIGESTSIZE];
+	u_char pkid[SHA_DIGEST_LENGTH];
 
 	if (dhs == NULL || tmp == NULL)
 		err(1, "%s: malloc", __func__);
@@ -309,7 +309,7 @@ dht_crypto_make_sig(RSA *key, const u_char *data, size_t datlen)
 {
 	SHA_CTX ctx;
 	struct dht_crypto_sig *dcs = NULL;
-	u_char digest[SHA1_DIGESTSIZE], pkid[SHA1_DIGESTSIZE];
+	u_char digest[SHA_DIGEST_LENGTH], pkid[SHA_DIGEST_LENGTH];
 	u_char *sig;
 	size_t sigsize;
 
@@ -349,8 +349,8 @@ dht_crypto_verify_sig(RSA *key, struct dht_crypto_sig *dcs,
     const u_char *data, size_t datlen)
 {
 	SHA_CTX ctx;
-	u_char digest[SHA1_DIGESTSIZE];
-	u_char verify_pkid[SHA1_DIGESTSIZE];
+	u_char digest[SHA_DIGEST_LENGTH];
+	u_char verify_pkid[SHA_DIGEST_LENGTH];
 	u_char *pkid;
 	u_char *sig;
 	u_char *hash;

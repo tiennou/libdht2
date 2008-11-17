@@ -102,7 +102,7 @@ SPLAY_GENERATE(kad_nodeidtree, kad_node_id, node, node_id_compare);
 int
 node_id_diff_compare(struct kad_node_id *a, struct kad_node_id *b)
 {
-	u_char diff[2][SHA1_DIGESTSIZE];
+	u_char diff[2][SHA_DIGEST_LENGTH];
 
 	assert(a->diff != NULL);
 	assert(b->diff != NULL);
@@ -234,7 +234,7 @@ kad_bucket_split(struct kad_bucket *bucket, u_char *id)
 	struct kad_node_id *tmp;
 	int level = bucket->level;
 
-	assert(bucket->level < SHA1_DIGESTSIZE*8 - 1);
+	assert(bucket->level < SHA_DIGEST_LENGTH*8 - 1);
 	assert(bucket->child_one == NULL);
 	assert(bucket->child_zero == NULL);
 
@@ -330,7 +330,7 @@ kad_node_num_closer_nodes(struct kad_node *node, u_char *search_id)
 {
 	struct kad_nodeidq nodes;
 	struct kad_node_id *id;
-	u_char diff[SHA1_DIGESTSIZE];
+	u_char diff[SHA_DIGEST_LENGTH];
 	int node_count = 0;
 
 	TAILQ_INIT(&nodes);
@@ -369,7 +369,7 @@ kad_node_find_bucket(struct kad_node *node, u_char *diff)
 	int i, set;
 
 	/* Maybe split this into separate function */
-	for (i = 0; i < SHA1_DIGESTSIZE*8 - 1; ++i) {
+	for (i = 0; i < SHA_DIGEST_LENGTH*8 - 1; ++i) {
 		struct kad_bucket *next_bucket;
 		assert(where->level == i);
 
@@ -397,7 +397,7 @@ kad_bucket_random_id(struct kad_bucket *bucket, u_char *dst)
 	if (kad_rand == NULL)
 		rand_init();
 
-	for (i = 0; i < SHA1_DIGESTSIZE; ++i)
+	for (i = 0; i < SHA_DIGEST_LENGTH; ++i)
 		dst[i] = rand_uint8(kad_rand);
 
 	if (bucket->num_subtree_nodes > 0) {
@@ -445,7 +445,7 @@ kad_node_bucket_refresh(struct kad_node *node, struct kad_bucket *bucket,
     void (*cb)(void *), void *cb_arg)
 {
 	struct kad_ctx_bucket_refresh *ctx;
-	u_char search_id[SHA1_DIGESTSIZE];
+	u_char search_id[SHA_DIGEST_LENGTH];
 
 	if ((ctx = calloc(1, sizeof(struct kad_ctx_bucket_refresh))) == NULL) {
 		warn("%s: calloc", __func__);
@@ -500,7 +500,7 @@ kad_node_new(struct dht_node *dht)
 	if (kad_rand == NULL)
 		rand_init();
 
-	for (i = 0; i < SHA1_DIGESTSIZE; ++i) {
+	for (i = 0; i < SHA_DIGEST_LENGTH; ++i) {
 		node->myself.id[i] = rand_uint8(kad_rand);
 	}
 
@@ -572,7 +572,7 @@ kad_node_insert(struct kad_node *node,
 	if (where->num_nodes < KAD_NODES_PER_BUCKET) {
 		kad_bucket_node_insert(where, node_id);
 	} else {
-		static u_char zero[SHA1_DIGESTSIZE];
+		static u_char zero[SHA_DIGEST_LENGTH];
 		struct kad_bucket *self = kad_node_find_bucket(node, zero);
 		if (self != where) {
 			kad_node_id_free(node_id);
@@ -1340,10 +1340,10 @@ kad_read_cb(struct addr *addr, uint16_t port, u_char *data, size_t datlen,
 		 */
 		if (hdr->rpc_command == DHT_KAD_RPC_PING) {
 			int i;
-			for (i = 0; i < SHA1_DIGESTSIZE; ++i)
+			for (i = 0; i < SHA_DIGEST_LENGTH; ++i)
 				if (hdr->dst_id[i])
 					break;
-			if (i == SHA1_DIGESTSIZE) {
+			if (i == SHA_DIGEST_LENGTH) {
 				/*
 				 * Wild card ping.  Allow it to proceed.
 				 */
@@ -1462,7 +1462,7 @@ kad_rpc_find_node(struct kad_node *node, struct kad_node_id *id,
 	return (kad_send_rpc(node, id,
 		    DHT_KAD_RPC_FIND_NODE, 
 		    NULL,    /* generate rpc id for us */
-		    (u_char *)node_id, SHA1_DIGESTSIZE,
+		    (u_char *)node_id, SHA_DIGEST_LENGTH,
 		    cb, cb_arg));
 }
 
@@ -1474,7 +1474,7 @@ kad_rpc_find_value(struct kad_node *node, struct kad_node_id *id,
 	return (kad_send_rpc(node, id,
 		    DHT_KAD_RPC_FIND_VALUE, 
 		    NULL,    /* generate rpc id for us */
-		    (u_char *)node_id, SHA1_DIGESTSIZE,
+		    (u_char *)node_id, SHA_DIGEST_LENGTH,
 		    cb, cb_arg));
 }
 
@@ -1484,7 +1484,7 @@ kad_rpc_store(struct kad_node *node, struct kad_node_id *id,
     void (*cb)(struct dht_rpc *, struct evbuffer *, void *), void *cb_arg)
 {
 	int res;
-	size_t totlen = SHA1_DIGESTSIZE + vallen;
+	size_t totlen = SHA_DIGEST_LENGTH + vallen;
 	u_char *data;
 
 	if (totlen > KAD_MAX_PAYLOAD_LEN) {
@@ -1497,8 +1497,8 @@ kad_rpc_store(struct kad_node *node, struct kad_node_id *id,
 		return (-1);
 	}
 
-	memcpy(data, node_id, SHA1_DIGESTSIZE);
-	memcpy(data + SHA1_DIGESTSIZE, value, vallen);
+	memcpy(data, node_id, SHA_DIGEST_LENGTH);
+	memcpy(data + SHA_DIGEST_LENGTH, value, vallen);
 
 	res = kad_send_rpc(node, id,
 	    DHT_KAD_RPC_STORE, 
@@ -1563,7 +1563,7 @@ kad_rpc_handle_find_value(struct kad_node *node,
 	}
 
 	kv = dht_find_keyval(node->storage,
-	    pkt_node->node_id, SHA1_DIGESTSIZE);
+	    pkt_node->node_id, SHA_DIGEST_LENGTH);
 
 	/* If we cannot find the keyvalue, just treat this as find node */
 	if (kv == NULL) {
@@ -1705,7 +1705,7 @@ kad_rpc_handle_store(struct kad_node *node,
 		     timeout));
 
 	/* Create the key value pair */
-	kv = dht_keyval_new(pkt_node->node_id, SHA1_DIGESTSIZE,
+	kv = dht_keyval_new(pkt_node->node_id, SHA_DIGEST_LENGTH,
 	    val, vallen);
 	if (kv == NULL) {
 		DFPRINTF(2, (stderr,
@@ -1821,13 +1821,13 @@ kad_dht_impl_lookup(void *node_data, u_char *id, size_t idlen,
 	struct kad_nodeidq nodes;
 	struct kad_node_id *tmp;
 	int i, num_nodes;
-	u_char diff[2][SHA1_DIGESTSIZE];
-	u_char search_id[SHA1_DIGESTSIZE];
+	u_char diff[2][SHA_DIGEST_LENGTH];
+	u_char search_id[SHA_DIGEST_LENGTH];
 
 	if (idlen == sizeof(search_id)) {
 		memcpy(search_id, id, sizeof(search_id));
 	} else {
-		SHA1_CTX ctx;
+		SHA_CTX ctx;
 		SHA1_Init(&ctx);
 		SHA1_Update(&ctx, id, idlen);
 		SHA1_Final(search_id, &ctx);
@@ -1882,12 +1882,12 @@ kad_dht_impl_find_id(void *node_data, u_char *id, size_t idlen,
 {
 	struct kad_node *node = node_data;
 	struct kad_node_id *fid;
-	u_char search_id[SHA1_DIGESTSIZE];
+	u_char search_id[SHA_DIGEST_LENGTH];
 
 	if (idlen == sizeof(search_id)) {
 		memcpy(search_id, id, sizeof(search_id));
 	} else {
-		SHA1_CTX ctx;
+		SHA_CTX ctx;
 		SHA1_Init(&ctx);
 		SHA1_Update(&ctx, id, idlen);
 		SHA1_Final(search_id, &ctx);
@@ -1932,12 +1932,12 @@ kad_dht_impl_store(void *node_data, u_char *keyid, size_t keylen,
     u_char *value, size_t vallen, void (*cb)(int, void *), void *cb_arg)
 {
 	struct kad_node *node = node_data;
-	u_char hashed_keyid[SHA1_DIGESTSIZE];
+	u_char hashed_keyid[SHA_DIGEST_LENGTH];
 
 	if (keylen == sizeof(hashed_keyid)) {
 		memcpy(hashed_keyid, keyid, sizeof(hashed_keyid));
 	} else {
-		SHA1_CTX ctx;
+		SHA_CTX ctx;
 		SHA1_Init(&ctx);
 		SHA1_Update(&ctx, keyid, keylen);
 		SHA1_Final(hashed_keyid, &ctx);
@@ -1968,12 +1968,12 @@ kad_dht_impl_find(void *node_data, u_char *keyid, size_t keylen,
 {
 	struct dht_keyvalue *kv;
 	struct kad_node *node = node_data;
-	u_char hashed_keyid[SHA1_DIGESTSIZE];
+	u_char hashed_keyid[SHA_DIGEST_LENGTH];
 
 	if (keylen == sizeof(hashed_keyid)) {
 		memcpy(hashed_keyid, keyid, sizeof(hashed_keyid));
 	} else {
-		SHA1_CTX ctx;
+		SHA_CTX ctx;
 		SHA1_Init(&ctx);
 		SHA1_Update(&ctx, keyid, keylen);
 		SHA1_Final(hashed_keyid, &ctx);

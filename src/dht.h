@@ -31,7 +31,7 @@
 #ifndef _DHT_H_
 #define _DHT_H_
 
-#include <sha1.h>
+#include <openssl/sha.h>
 
 #ifdef DEBUG
 #define DFPRINTF(x, y) do { \
@@ -49,7 +49,7 @@
 
 /* Some stupid data structures */
 struct dht_node_id {
-	u_char id[SHA1_DIGESTSIZE];
+	u_char id[SHA_DIGEST_LENGTH];
 	struct addr addr;
 	uint16_t port;
 };
@@ -104,7 +104,7 @@ struct dht_callbacks {
 struct dht_pkthdr {
 	uint16_t version;	/* protocol version */
 	uint16_t type;		/* packet type */
-	uint8_t signature[SHA1_DIGESTSIZE];
+	uint8_t signature[SHA_DIGEST_LENGTH];
 } __attribute__((__packed__));
 
 #define DHT_VERSION		0x0100	/* major 1 minor 0 */
@@ -122,8 +122,8 @@ struct dht_group;
 struct dht_rpc {
 	SPLAY_ENTRY(dht_rpc) node;
 
-	uint8_t rpc_id[SHA1_DIGESTSIZE];
-	uint8_t rpc_dst[SHA1_DIGESTSIZE];	/* for penalizing on timeout */
+	uint8_t rpc_id[SHA_DIGEST_LENGTH];
+	uint8_t rpc_dst[SHA_DIGEST_LENGTH];	/* for penalizing on timeout */
 	uint8_t rpc_command;
 
 	struct dht_rpcs *rpc_root;		/* remember root of tree */

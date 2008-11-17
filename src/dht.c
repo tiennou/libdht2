@@ -108,11 +108,11 @@ char *
 dht_node_id_ascii(u_char *id)
 {
 	static int off;
-	static char ascii[2][SHA1_DIGESTSIZE*2+1];
+	static char ascii[2][SHA_DIGEST_LENGTH*2+1];
 	char *p = ascii[++off % 2];
 	int i;
 
-	for (i = 0; i < SHA1_DIGESTSIZE; ++i) {
+	for (i = 0; i < SHA_DIGEST_LENGTH; ++i) {
 		snprintf(p + 2*i, 3, "%02x", id[i]);
 	}
 
@@ -262,8 +262,8 @@ dht_read_cb(int fd, short what, void *arg)
 	struct dht_type_callback *typecb;
 	struct sockaddr_in sin;
 	socklen_t sinlen = sizeof(sin);
-	SHA1_CTX ctx;
-	u_char digest[SHA1_DIGESTSIZE];
+	SHA_CTX ctx;
+	u_char digest[SHA_DIGEST_LENGTH];
 	ssize_t res;
 	u_char *payload = (u_char *)(hdr + 1);
 	ssize_t payload_len;
@@ -325,7 +325,7 @@ dht_write_cb(int fd, short what, void *arg)
 	int res;
 	struct msghdr hdr;
 	struct iovec io[2];
-	SHA1_CTX ctx;
+	SHA_CTX ctx;
 
 	addr_ntos(&tmp->dst, (struct sockaddr *)&sin);
 	sin.sin_port = htons(tmp->port);
@@ -511,7 +511,7 @@ dht_rpc_new(struct dht_rpcs *rpcs, void *node,
 	memcpy(rpc->rpc_dst, dst_id, sizeof(rpc->rpc_dst));
 
 	/* Generate a random RPC id */
-	for (i = 0; i < SHA1_DIGESTSIZE; i++)
+	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
 		rpc->rpc_id[i] = rand_uint8(dht_rand);
 
 	rpc->rpc_command = command;

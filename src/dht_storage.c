@@ -40,7 +40,7 @@
 
 #include <fcntl.h>
 #include <fts.h>
-#include <sha1.h>
+#include <openssl/sha.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
