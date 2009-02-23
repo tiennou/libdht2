@@ -97,7 +97,7 @@ join_channel_done(struct dht_rpc *rpc,
 {
 	struct server_request *req = arg;
 	char *channel_name;
-	int error_code;
+	unsigned int error_code;
 	char *error_reason;
 	struct evbuffer *tmp = evbuffer_new();
 
@@ -123,7 +123,7 @@ part_channel_done(struct dht_rpc *rpc,
 {
 	struct server_request *req = arg;
 	char *channel_name;
-	int error_code;
+	unsigned int error_code;
 	char *error_reason;
 	struct evbuffer *tmp = evbuffer_new();
 
@@ -147,7 +147,7 @@ static void
 privmsg_done(struct dht_rpc *rpc, struct dht_group_msg_reply *reply, void *arg)
 {
 	char *channel_name;
-	int error_code;
+	unsigned int error_code;
 	char *error_reason;
 
 	EVTAG_GET(reply, channel_name, &channel_name);
@@ -257,7 +257,7 @@ server_evb_readcb(struct bufferevent *bev, void *parameter)
 			/* Makes channel null terminated */
 			strsep(&message, " ");
 			if (dht_group_privmsg(node, channel,
-				message + 1, strlen(message + 1),
+				(uint8_t*)message + 1, strlen(message + 1),
 				privmsg_done, req) == -1) {
 				struct evbuffer *tmp = evbuffer_new();
 

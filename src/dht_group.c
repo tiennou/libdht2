@@ -495,18 +495,12 @@ dht_group_register(struct dht_group *group)
 	return (res);
 }
 
-void
-dht_group_free(struct dht_group *group)
-{
-	free(group);
-}
-
 struct dht_group *
 dht_group_new(struct dht_node *dht)
 {
 	struct dht_group *group = NULL;
 	struct dht_group_channel *channel = NULL;
-	u_char myidasc[SHA_DIGEST_LENGTH*2+3];
+	char myidasc[SHA_DIGEST_LENGTH*2+3];
 
 	if ((group = calloc(1, sizeof(struct dht_group))) == NULL)
 		err(1, "%s: calloc", __func__);
@@ -540,6 +534,14 @@ dht_group_new(struct dht_node *dht)
 	channel->flags |= DHT_CHANNEL_SUBSCRIBED;
 
 	return (group);
+}
+
+void
+dht_group_free(struct dht_group *group)
+{
+    dht_free(group->dht);
+    /* TODO: Free rpcs, channels, seqnrs */
+	free(group);
 }
 
 void
@@ -1019,7 +1021,7 @@ dht_group_propagate_privmsg(struct dht_group *group,
 
 	if (up) {
 		/* Find out how many nodes are close to this channel */
-		if (dht_lookup(group->dht, channel_name, strlen(channel_name),
+		if (dht_lookup(group->dht, (u_char*)channel_name, strlen(channel_name),
 			&ids, &numids) == -1) {
 			DFPRINTF(1, (stderr,
 				     "%s: dht_lookup failed\n", __func__));
@@ -1158,7 +1160,7 @@ dht_group_internal_join_channel(struct dht_group *group,
 		channel->flags |= DHT_CHANNEL_SUBSCRIBED;
 
 	/* Find out how many nodes are close to this channel */
-	if (dht_lookup(group->dht, channel_name, strlen(channel_name),
+	if (dht_lookup(group->dht, (u_char*)channel_name, strlen(channel_name),
 		&ids, &numids) == -1) {
 		DFPRINTF(2, (stderr, "%s: dht_lookup failed\n", __func__));
 		return (-1);
@@ -1415,7 +1417,7 @@ dht_group_internal_part_channel(struct dht_group *group,
 	}
 
 	/* Find out how many nodes are close to this channel */
-	if (dht_lookup(group->dht, channel_name, strlen(channel_name),
+	if (dht_lookup(group->dht, (u_char*)channel_name, strlen(channel_name),
 		&ids, &numids) == -1) {
 		DFPRINTF(2, (stderr, "%s: dht_lookup failed\n", __func__));
 		return (-1);
@@ -1618,21 +1620,21 @@ dht_group_rpc_delay_callback(struct dht_group_msg_reply *reply,
 }
 
 int
-dht_group_lookup(struct dht_node *node, u_char *channel_name,
+dht_group_lookup(struct dht_node *node, char *channel_name,
     struct dht_node_id **ids, size_t *numids)
 {
 	u_char digest[SHA_DIGEST_LENGTH];
-	u_char *p = channel_name;
+	char *p = channel_name;
 	size_t plen = strlen(channel_name);
 	
 	if (strncasecmp(channel_name, "0x", 2) == 0 &&
 	    plen == SHA_DIGEST_LENGTH*2 + 2) {
 		dht_bits_bin2hex(channel_name, digest, sizeof(digest));
-		p = digest;
+		p = (char*)digest;
 		plen = sizeof(digest);
 	}
 
-	return dht_lookup(node, p, plen, ids, numids);
+	return dht_lookup(node, (u_char*)p, plen, ids, numids);
 }
 
       

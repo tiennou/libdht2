@@ -248,7 +248,7 @@ struct dht_crypto_pkinfo *
 dht_crypto_make_pkinfo(RSA *mykey, int serial, char *name)
 {
 	struct dht_crypto_pkinfo *pkinfo = dht_crypto_pkinfo_new();
-	char *datap;
+	uint8_t *datap;
 	size_t datalen;
 	BIO *bp = NULL;
 

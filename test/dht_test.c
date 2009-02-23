@@ -106,7 +106,7 @@ Test_Two_Find_Node_Reply(struct dht_rpc *rpc, struct evbuffer *evbuf, void *arg)
 
 	assert(remaining / sizeof(*pkt) == KAD_NODES_PER_BUCKET);
 
-	fprintf(stderr, "Got %d nodes\n", remaining / sizeof(*pkt));
+	fprintf(stderr, "Got %ld nodes\n", remaining / sizeof(*pkt));
 	for (i = 0; i < remaining / sizeof(*pkt); ++i) {
 		struct addr addr;
 		int distance = dht_bits_compare(pkt[i].node_id,
@@ -236,7 +236,7 @@ Test_Six(struct kad_node *node, char *text)
 	SHA1_Update(&ctx, text, strlen(text) + 1);
 	SHA1_Final(digest, &ctx);
 
-	assert(kad_impl_store(node, digest, text, strlen(text) + 1,
+	assert(kad_impl_store(node, digest, (u_char*)text, strlen(text) + 1,
 		   Test_Six_Cb, NULL) != -1);
 
 	event_dispatch();
