@@ -214,6 +214,34 @@ dht_new(uint16_t port)
 	return (node);
 }
 
+void
+dht_free(struct dht_node * node)
+{
+	struct dht_type_callback *typecb, *next;
+    struct dht_message *msg;
+    
+    /* First close network stuff */
+    event_del(&node->ev_read);
+    event_del(&node->ev_write);
+    close(node->fd);
+    
+    /* Then cleanup our internal structures */
+    for (typecb = SPLAY_MIN(dht_readcb_tree, &node->read_cbs); typecb != NULL; typecb = next) {
+		next = SPLAY_NEXT(dht_readcb_tree, &node->read_cbs, typecb);
+        SPLAY_REMOVE(dht_readcb_tree, &node->read_cbs, typecb);
+        free(typecb);
+    }
+    
+    TAILQ_FOREACH(msg, &node->messages, next) {
+        TAILQ_REMOVE(&node->messages, msg, next);
+        free(msg->data);
+        free(msg);
+    }
+    
+    free(node);
+}
+
+
 /* Join a DHT network */
 
 int

@@ -202,6 +202,7 @@ struct dht_node {
 void			dht_init();
 
 struct dht_node *	dht_new(uint16_t port);
+void            dht_free(struct dht_node * node);
 void			dht_set_impl(struct dht_node *, uint16_t type,
 			    const struct dht_callbacks *impl_cbs,
 			    void *impl_arg);
