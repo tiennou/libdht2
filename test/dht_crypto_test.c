@@ -39,6 +39,7 @@
 
 #include <openssl/rsa.h>
 
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -50,32 +51,54 @@
 #include <event.h>
 #include <dnet.h>
 
+#include <CUnit/CUnit.h>
+
 #include "dht.h"
 #include "dht_kademlia.h"
 #include "dht_crypto.gen.h"
 #include "dht_crypto.h"
 
+#define KEYNAME ".tmp.key"
+#define OTHER_KEYNAME ".tmp.key.other"
+
+extern int debug;
+
+int dht_crypto_test_init(void) {
+    event_init();
+    
+    dht_init();
+    
+    return 0;
+}
+
+int dht_crypto_test_cleanup(void) {
+    unlink(KEYNAME);
+    unlink(OTHER_KEYNAME);
+    return 0;
+}
+
 void
-Test_One(RSA *key)
+dht_crypto_test_signature_verification(void)
 {
+    RSA *key = dht_crypto_getkey(KEYNAME);
 	const char *message = "Hello you Klotz";
 	struct dht_crypto_sig *sig;
 	int res;
 
-	fprintf(stderr, "\tTesting signature verification: ");
+	sig = dht_crypto_make_sig(key, (u_char*)message, strlen(message) + 1);
+	CU_ASSERT_PTR_NOT_NULL(sig);
 
-	sig = dht_crypto_make_sig(key, message, strlen(message) + 1);
-	assert(sig != NULL);
-
-	res = dht_crypto_verify_sig(key, sig, message, strlen(message) + 1);
-	assert(res != -1);
-
-	fprintf(stderr, "OK\n");
+	res = dht_crypto_verify_sig(key, sig, (u_char*)message, strlen(message) + 1);
+	CU_ASSERT(res == 0);
+    
+    RSA_free(key);
 }
 
 void
-Test_Two(RSA *mykey, RSA *otherkey)
+dht_crypto_test_authorization(void)
 {
+    RSA *mykey = dht_crypto_getkey(KEYNAME);
+    RSA *otherkey = dht_crypto_getkey(OTHER_KEYNAME);
 	struct dht_crypto_store *store;
 	struct dht_crypto_pkinfo *pkinfo;
 	struct dht_pkinfo *internal_pkinfo = NULL;
@@ -85,68 +108,46 @@ Test_Two(RSA *mykey, RSA *otherkey)
 
 	debug = 2;
 
-	fprintf(stderr, "\tTesting authorization: ");
-
 	store = dht_crypto_authorize_key(otherkey, mykey, 0);
-	assert(store != NULL);
-	assert(!dht_crypto_store_complete(store));
+	CU_ASSERT_PTR_NOT_NULL(store);
+	CU_ASSERT(dht_crypto_store_complete(store) == 0);
 
 	dht_crypto_store_marshal(tmp, store);
 
-	fprintf(stderr, "Length: %d ", EVBUFFER_LENGTH(tmp));
-
 	pkinfo = dht_crypto_make_pkinfo(otherkey, 0, "niels");
-	assert(pkinfo != NULL);
-	assert(!EVTAG_ASSIGN(store, pkinfo, pkinfo));
+	CU_ASSERT_PTR_NOT_NULL(pkinfo);
+	CU_ASSERT(EVTAG_ASSIGN(store, pkinfo, pkinfo) == 0);
 
 	evbuffer_drain(tmp, -1);
 	dht_crypto_pkinfo_marshal(tmp, pkinfo);
 
 	sig = dht_crypto_make_sig(otherkey,
 	    EVBUFFER_DATA(tmp), EVBUFFER_LENGTH(tmp));
-	assert(!EVTAG_ASSIGN(store, pkinfo_sig, sig));
-	assert(!dht_crypto_verify_store(NULL, store));
+	CU_ASSERT(EVTAG_ASSIGN(store, pkinfo_sig, sig) == 0);
+	CU_ASSERT(dht_crypto_verify_store(NULL, store) == 0);
 
 	dht_crypto_sig_free(sig);
 
 	/* Let's play with our convertors */
 	internal_pkinfo = dht_crypto_internalize_pkinfo(pkinfo);
-	assert(internal_pkinfo != NULL);
+	CU_ASSERT_PTR_NOT_NULL(internal_pkinfo);
 	
 	evbuffer_free(tmp);
-
-	fprintf(stderr, "OK\n");
+    RSA_free(mykey);
+    RSA_free(otherkey);
 }
 
-int
-main(int argc, char **argv)
-{
-	extern int debug;
-	u_char digest[SHA_DIGEST_LENGTH];
-	RSA *mykey = NULL, *otherkey;
-
-	/* Some simple debugging */
-	debug = 1;
-
-	event_init();
-
-	dht_init();
-
-	mykey = dht_crypto_getkey(".tmp.key");
-	assert(mykey != NULL);
-	dht_crypto_rsa_idkey(mykey, digest, sizeof(digest));
-	dht_crypto_rsa_print_id(stderr, "key id", digest);
-
-	Test_One(mykey);
-
-	otherkey = dht_crypto_getkey(".tmp.key.other");
-	assert(otherkey != NULL);
-	dht_crypto_rsa_idkey(otherkey, digest, sizeof(digest));
-	dht_crypto_rsa_print_id(stderr, "key id", digest);
-
-	Test_Two(mykey, otherkey);
-
-	fprintf(stderr, "OK\n");
-
-	exit(0);
+void registerTestSuite(void) {
+    CU_TestInfo tests[] = {
+        { "sigverification", dht_crypto_test_signature_verification },
+        { "authorization", dht_crypto_test_authorization },
+        CU_TEST_INFO_NULL,
+    };
+    CU_SuiteInfo suites[] = {
+        { "dht_crypto_test", dht_crypto_test_init, dht_crypto_test_cleanup, tests },
+        CU_SUITE_INFO_NULL,
+    };
+    CU_ErrorCode err = CU_register_suites(suites);
+    if( err != CUE_SUCCESS )
+        warnx("got error registering %d", err);
 }

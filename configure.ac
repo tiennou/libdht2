@@ -81,9 +81,11 @@ else
      AC_MSG_RESULT(no)
 fi
 
-AC_MSG_NOTICE($CFLAGS)
-AC_MSG_NOTICE($LDFLAGS)
-AC_MSG_NOTICE($LIBS)
+AC_CHECK_LIB([cunit], [CU_automated_run_tests], [have_cunit=yes], [have_cunit=no])
+AM_CONDITIONAL([HAVE_LIBCUNIT], [test x$have_cunit = xyes])
+
+AC_CHECK_HEADERS([zlib.h], [], [AC_ERROR(event.h header not found)])
+AC_CHECK_LIB([z], [deflateInit_], [], [AC_ERROR(libz not found)])
 
 # Checks for header files.
 AC_HEADER_STDC
