@@ -514,7 +514,7 @@ kad_node_new(struct dht_node *dht)
 
 	node->dht = dht;
 
-	node->storage = dht_storage_new(NULL, kad_key_refresh, node);
+	node->storage = dht_storage_new(kad_key_refresh, node);
 	if (node->storage == NULL)
 		err(1, "%s: calloc", __func__);
 
@@ -1220,7 +1220,7 @@ kad_impl_join_stage_two_cb(struct kad_nodeidq *nodes, void *arg)
 	struct kad_ctx_join *ctx = arg;
 	struct kad_node *node = ctx->node;
 	struct kad_node_id *id;
-	int count;
+	int count = 0;
 
 	/* Ignore the results, we do not care for them */
 	while ((id = TAILQ_FIRST(nodes)) != NULL) {
@@ -1562,7 +1562,7 @@ kad_rpc_handle_find_value(struct kad_node *node,
 		return;
 	}
 
-	kv = dht_find_keyval(node->storage,
+	kv = dht_storage_find(node->storage,
 	    pkt_node->node_id, SHA_DIGEST_LENGTH);
 
 	/* If we cannot find the keyvalue, just treat this as find node */
@@ -1714,7 +1714,7 @@ kad_rpc_handle_store(struct kad_node *node,
 		return;
 	}
 
-	if (dht_insert_keyval(node->storage, kv, timeout) == -1) {
+	if (dht_storage_insert(node->storage, kv, timeout) == -1) {
 		dht_keyval_free(kv);
 		DFPRINTF(2, (stderr,
 			     "%s: failed to insert keyval for %s:%d\n",
@@ -1979,7 +1979,7 @@ kad_dht_impl_find(void *node_data, u_char *keyid, size_t keylen,
 		SHA1_Final(hashed_keyid, &ctx);
 	}
 
-	kv = dht_find_keyval(node->storage, hashed_keyid, sizeof(hashed_keyid));
+	kv = dht_storage_find(node->storage, hashed_keyid, sizeof(hashed_keyid));
 	if (kv != NULL) {
 		struct timeval tv;
 		struct kad_dht_impl_find_ctx *ctx = NULL;

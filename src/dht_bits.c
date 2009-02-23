@@ -37,6 +37,7 @@
 #include <ctype.h>
 #include <openssl/sha.h>
 #include <string.h>
+#include <assert.h>
 
 /* Globals */
 static char h2btab[] = {
@@ -49,7 +50,7 @@ static char h2btab[] = {
 #define hextobin(x)	(nibbletobin((x)[0])*16 + nibbletobin((x)[1]))
 
 int
-dht_bits_hex2bin(u_char *bin, char *hex, size_t len)
+dht_bits_hex2bin(u_char *bin, size_t len, const char *hex)
 {
 	char asc[2];
 	int i;
@@ -69,9 +70,10 @@ dht_bits_hex2bin(u_char *bin, char *hex, size_t len)
 }
 
 void
-dht_bits_bin2hex(char *hex, u_char *bin, size_t len)
+dht_bits_bin2hex(char *hex, const u_char *bin, size_t len)
 {
 	int i;
+    assert(hex != NULL);
 
 	for (i = 0; i < len; i++) {
 		hex[i*2 + 0] = h2btab[bin[i] >> 4];
@@ -79,13 +81,6 @@ dht_bits_bin2hex(char *hex, u_char *bin, size_t len)
 	}
 	hex[i*2 + 0] = '\0';
 }
-
-/* 
- * Returns the first bit position that differs.  Bits are numbered starting
- * at one.  A return value of zero means that the identifiers were equal.
- *
- *   length: number of octets
- */
 
 static int bit_set[256];
 static int bit_set_init;
@@ -103,6 +98,12 @@ void bit_init()
 	}
 }
 
+/* 
+ * Returns the first bit position that differs.  Bits are numbered starting
+ * at one.  A return value of zero means that the identifiers were equal.
+ *
+ *   length: number of octets
+ */
 int
 dht_bits_compare(u_char *a, u_char *b, size_t length)
 {
@@ -184,7 +185,6 @@ dht_kademlia_distance(u_char *a, u_char *b)
  * Assumes that dst might be populated already.  This allows us to copy
  * just a prefix and leave the rest for example random.
  */
-
 void
 dht_copy_bits(u_char *dst, u_char *src, int bits)
 {

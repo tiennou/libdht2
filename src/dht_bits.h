@@ -31,8 +31,8 @@
 #ifndef _DHT_BITS_
 #define _DHT_BITS_
 
-int dht_bits_hex2bin(u_char *bin, char *hex, size_t len);
-void dht_bits_bin2hex(char *hex, u_char *bin, size_t len);
+int dht_bits_hex2bin(u_char *bin, size_t len, const char *hex);
+void dht_bits_bin2hex(char *hex, const u_char *bin, size_t len);
 
 int dht_bits_compare(u_char *a, u_char *b, size_t length);
 int dht_byte_compare(u_char *a, size_t alen, u_char *b, size_t blen);
