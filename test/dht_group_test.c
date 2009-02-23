@@ -48,6 +48,8 @@
 #include <event.h>
 #include <dnet.h>
 
+#include <CUnit/CUnit.h>
+
 #include "dht.h"
 #include "dht_kademlia.h"
 #include "dht_group.h"
@@ -56,9 +58,58 @@
 #define GROUP_SIZE	40
 #define PORT_BASE	40000
 
+extern int debug;
+
 static int counter;
 struct dht_group *node[GROUP_SIZE];
 struct addr addr;
+
+int
+receive_msg(struct dht_group *group,
+            char *channel_name, uint8_t *src_id,
+            uint8_t *message, uint32_t message_length,
+            void *cb_arg)
+{
+	fprintf(stderr, "%s: %s: %s\n",
+            channel_name, dht_node_id_ascii(src_id), message);
+    
+	return (1);	/* nobody else get this message */
+}
+
+int
+dht_group_test_init(void) {
+	int i;
+    
+	/* Some simple debugging */
+	debug = 0;
+    
+	event_init();
+    
+	dht_init();
+    
+	addr_pton("127.0.0.1", &addr);
+    
+	/* Set up the nodes */
+	for (i = 0; i < GROUP_SIZE; ++i) {
+		struct dht_node *dht = kad_make_dht(PORT_BASE + i);
+		assert(dht != NULL);
+		node[i] = dht_group_new(dht);
+		dht_group_register_cb(node[i], receive_msg, NULL);
+		assert(node[i] != NULL);
+	}
+    
+    return 0;
+}
+
+int
+dht_group_test_cleanup(void) {
+    int i;
+    for (i = 0; i < GROUP_SIZE; ++i) {
+        dht_group_free(node[i]);
+        /* XXX - Missing API for unregistering */
+    }
+    return 0;
+}
 
 void
 part_cb_done(struct dht_rpc *rpc, struct dht_group_msg_reply *reply, void *arg)
@@ -66,10 +117,10 @@ part_cb_done(struct dht_rpc *rpc, struct dht_group_msg_reply *reply, void *arg)
 	static int count;
 	struct dht_group *group = arg;
 	char *channel_name;
-	int error_code;
+	unsigned int error_code;
 	char *error_reason;
 
-	assert(reply != NULL);
+	CU_ASSERT(reply != NULL);
 
 	EVTAG_GET(reply, channel_name, &channel_name);
 	EVTAG_GET(reply, error_code, &error_code);
@@ -106,16 +157,16 @@ privmsg_done(struct dht_rpc *rpc, struct dht_group_msg_reply *reply, void *arg)
 {
 	struct dht_group *group = arg;
 	char *channel_name;
-	int error_code;
+	unsigned int error_code;
 	char *error_reason;
 	struct timeval tv;
 
 	if (reply == NULL)
 		return;
 
-	assert(!EVTAG_GET(reply, channel_name, &channel_name));
-	assert(!EVTAG_GET(reply, error_code, &error_code));
-	assert(!EVTAG_GET(reply, error_reason, &error_reason));
+	CU_ASSERT(!EVTAG_GET(reply, channel_name, &channel_name));
+	CU_ASSERT(!EVTAG_GET(reply, error_code, &error_code));
+	CU_ASSERT(!EVTAG_GET(reply, error_reason, &error_reason));
 
 	fprintf(stderr, "%s: channel: %s -> %d - %s\n",
 	    dht_node_id_ascii(dht_myid(group->dht)),
@@ -133,7 +184,7 @@ join_channel_done(struct dht_rpc *rpc,
 	static int count;
 	struct dht_group *group = arg;
 	char *channel_name;
-	int error_code;
+	unsigned int error_code;
 	char *error_reason;
 
 	if (reply == NULL)
@@ -176,19 +227,20 @@ join_channel_cb(int fd, short what, void *arg)
 
 	fprintf(stderr, "Trying to join channel....\n");
 
-	assert(dht_group_join_channel(group, "niels",
+	CU_ASSERT(dht_group_join_channel(group, "niels",
 		   join_channel_done, group) == 0);
 }
 
 void
 join_done_cb(int failure, void *arg)
 {
-	struct dht_group *group = arg;
-
-	if (failure)
-		errx(1, "Join failed");
-
-	fprintf(stderr, "DHT node %p joined\n", group->dht);
+    if( failure ) {
+        CU_FAIL("Join failed");
+    }
+    else
+    {
+        CU_PASS("Join successful");
+    }
 }
 
 void
@@ -203,7 +255,7 @@ start_join_cb(int fd, short what, void *arg)
 }
 
 void
-TestOne(void)
+dht_group_test_join(void)
 {
 	struct event ev_timeout[GROUP_SIZE];
 	struct event ev_join[GROUP_SIZE];
@@ -260,7 +312,7 @@ join_channel_done_illegal(struct dht_rpc *rpc,
 {
 	struct dht_group *group = arg;
 	char *channel_name;
-	int error_code;
+	unsigned int error_code;
 	char *error_reason;
 
 	if (reply == NULL)
@@ -280,7 +332,7 @@ join_channel_done_illegal(struct dht_rpc *rpc,
 }
 
 void
-TestTwo(void)
+dht_group_test_illegal(void)
 {
 	/* Have one node join an illegal channel name */
 	assert(dht_group_join_channel(node[0], "0xillegal",
@@ -290,80 +342,49 @@ TestTwo(void)
 }
 
 void
-TestSeqNr(void)
+dht_group_test_sequence_numbers(void)
 {
 	int i;
 	char *src_id = dht_myid(node[0]->dht);
 	fprintf(stderr, "Blowing away sequence numbers....");
 
-	assert(dht_group_new_seqnr(node[1], src_id, 0) == 0);
-	assert(dht_group_new_seqnr(node[1], src_id, 0) == -1);
+	CU_ASSERT(dht_group_new_seqnr(node[1], src_id, 0) == 0);
+	CU_ASSERT(dht_group_new_seqnr(node[1], src_id, 0) == -1);
 
 	for (i = 1; i < 100; ++i) {
-		assert(dht_group_new_seqnr(node[1], src_id, i) == 0);
+		CU_ASSERT(dht_group_new_seqnr(node[1], src_id, i) == 0);
 	}
 
 	for (; i < 200; i += 2) {
-		assert(dht_group_new_seqnr(node[1], src_id, i + 1) == 0);
-		assert(dht_group_new_seqnr(node[1], src_id, i) == 0);
+		CU_ASSERT(dht_group_new_seqnr(node[1], src_id, i + 1) == 0);
+		CU_ASSERT(dht_group_new_seqnr(node[1], src_id, i) == 0);
 	}
 
-	assert(dht_group_new_seqnr(node[1], src_id, i + 20) == 0);
-	assert(dht_group_new_seqnr(node[1], src_id, i + 17) == 0);
-	assert(dht_group_new_seqnr(node[1], src_id, i + 15) == 0);
+	CU_ASSERT(dht_group_new_seqnr(node[1], src_id, i + 20) == 0);
+	CU_ASSERT(dht_group_new_seqnr(node[1], src_id, i + 17) == 0);
+	CU_ASSERT(dht_group_new_seqnr(node[1], src_id, i + 15) == 0);
 	for (; i < 215; i++) {
-		assert(dht_group_new_seqnr(node[1], src_id, i) == 0);
+		CU_ASSERT(dht_group_new_seqnr(node[1], src_id, i) == 0);
 	}
 
-	assert(dht_group_new_seqnr(node[1], src_id, i + 5) == -1);
+	CU_ASSERT(dht_group_new_seqnr(node[1], src_id, i + 5) == -1);
 
 	/* Make the sequence number useful again */
 	node[0]->seqnr = 1000;
-
-	fprintf(stderr, "OK\n");
 }
 
-int
-receive_msg(struct dht_group *group,
-    char *channel_name, uint8_t *src_id,
-    uint8_t *message, uint32_t message_length,
-    void *cb_arg)
-{
-	fprintf(stderr, "%s: %s: %s\n",
-	    channel_name, dht_node_id_ascii(src_id), message);
-
-	return (1);	/* nobody else get this message */
-}
-
-int
-main(int argc, char **argv)
-{
-	extern int debug;
-	int i;
-
-	/* Some simple debugging */
-	debug = 0;
-
-	event_init();
-
-	dht_init();
-
-	addr_pton("127.0.0.1", &addr);
-
-	/* Set up the nodes */
-	for (i = 0; i < GROUP_SIZE; ++i) {
-		struct dht_node *dht = kad_make_dht(PORT_BASE + i);
-		assert(dht != NULL);
-		node[i] = dht_group_new(dht);
-		dht_group_register_cb(node[i], receive_msg, NULL);
-		assert(node[i] != NULL);
-	}
-
-	TestSeqNr();
-	TestOne();
-	TestTwo();
-
-	fprintf(stderr, "OK\n");
-
-	exit(0);
+void registerTestSuite(void) {
+    CU_TestInfo tests[] = {
+        { "seqnumber", dht_group_test_sequence_numbers },
+        { "join", dht_group_test_join },
+        { "illegal", dht_group_test_illegal },
+        CU_TEST_INFO_NULL,
+    };
+    CU_SuiteInfo suites[] = {
+        { "dht_group_test", dht_group_test_init, dht_group_test_cleanup, tests },
+        CU_SUITE_INFO_NULL,
+    };
+    CU_ErrorCode err = CU_register_suites(suites);
+    if( err != CUE_SUCCESS )
+        warnx("got error registering %d", err);
 }
