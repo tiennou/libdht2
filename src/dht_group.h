@@ -163,6 +163,7 @@ struct dht_group {
 
 void			dht_group_init();
 struct dht_group *	dht_group_new(struct dht_node *dht);
+void            dht_group_free(struct dht_group *group);
 void			dht_group_register_cb(struct dht_group *group,
 			    message_cb, void *);
 int			dht_group_join_channel(struct dht_group *group,
@@ -244,7 +245,7 @@ void			dht_group_handle_part(struct dht_group *group,
  * binary string.
  */
 int			dht_group_lookup(struct dht_node *node,
-			    u_char *channel_name,
+			    char *channel_name,
 			    struct dht_node_id **ids, size_t *numids);
 
 void			dht_group_rpc_delay_callback(
