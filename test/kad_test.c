@@ -29,7 +29,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+ #include "config.h"
 #endif
 
 #include <sys/types.h>
@@ -48,12 +48,12 @@
 #include "dht_bits.h"
 #include "dht_kademlia.h"
 
-#define KAD_TEST_NODES	1000
+#define KAD_TEST_NODES  1000
 
 struct kad_node_id *
 id_clone(struct kad_node_id *id)
 {
-	return (kad_node_id_new(&id->addr, id->port, id->id));
+    return kad_node_id_new(&id->addr, id->port, id->id);
 }
 
 /* Verify that the prefix is the same for all of them */
@@ -61,73 +61,74 @@ id_clone(struct kad_node_id *id)
 void
 verify(struct kad_bucket *bucket)
 {
-	if (bucket->child_one != NULL || bucket->child_zero != NULL) {
-		verify(bucket->child_one);
-		verify(bucket->child_zero);
-	} else {
-		struct kad_node_id *first = TAILQ_FIRST(&bucket->nodes);
-		struct kad_node_id *tmp;
+    if (bucket->child_one != NULL || bucket->child_zero != NULL) {
+        verify(bucket->child_one);
+        verify(bucket->child_zero);
+    } else {
+        struct kad_node_id *first = TAILQ_FIRST(&bucket->nodes);
+        struct kad_node_id *tmp;
 
-		int count = 0;
-		TAILQ_FOREACH(tmp, &bucket->nodes, next) {
-			int diff = dht_bits_compare(tmp->id, first->id,
-			    SHA_DIGEST_LENGTH);
-			count++;
-			if (!diff)
-				continue;
+        int count = 0;
+        TAILQ_FOREACH(tmp, &bucket->nodes, next) {
+            int diff = dht_bits_compare(tmp->id, first->id,
+                                        SHA_DIGEST_LENGTH);
 
-			if (diff <= bucket->level)
-				errx(1, "%s: at level %d", 
-				    __func__, bucket->level);
-		}
+            count++;
+            if (!diff)
+                continue;
 
-		if (count != bucket->num_nodes)
-			errx(1, "%s: bad node coun: %d != %d",
-			    __func__, count, bucket->num_nodes);
-	}
+            if (diff <= bucket->level)
+                errx(1, "%s: at level %d",
+                     __func__, bucket->level);
+        }
+
+        if (count != bucket->num_nodes)
+            errx(1, "%s: bad node coun: %d != %d",
+                 __func__, count, bucket->num_nodes);
+    }
 }
 
 void
 Test_One(void)
 {
-	struct kad_node *nodes[KAD_TEST_NODES];
-	int i, j;
+    struct kad_node *nodes[KAD_TEST_NODES];
+    int i, j;
 
-	fprintf(stderr, "Node insertion: ");
+    fprintf(stderr, "Node insertion: ");
 
-	/* 
-	 * Just insert the nodes as they come along, splitting buckets
-	 * as we go.
-	 */
-	for (i = 0; i < KAD_TEST_NODES; ++i) {
-		fprintf(stderr, "%d ", i);
-		fflush(stderr);
-		nodes[i] = kad_node_new(NULL);
-		for (j = 0; j < i; ++j) {
-			kad_node_insert(nodes[i],
-			    &nodes[j]->myself.addr,
-			    nodes[j]->myself.port,
-			    nodes[j]->myself.id);
-			kad_node_insert(nodes[j],
-			    &nodes[i]->myself.addr,
-			    nodes[i]->myself.port,
-			    nodes[i]->myself.id);
-		}
+    /*
+     * Just insert the nodes as they come along, splitting buckets
+     * as we go.
+     */
+    for (i = 0; i < KAD_TEST_NODES; ++i) {
+        fprintf(stderr, "%d ", i);
+        fflush(stderr);
+        nodes[i] = kad_node_new(NULL);
+        for (j = 0; j < i; ++j) {
+            kad_node_insert(nodes[i],
+                            &nodes[j]->myself.addr,
+                            nodes[j]->myself.port,
+                            nodes[j]->myself.id);
+            kad_node_insert(nodes[j],
+                            &nodes[i]->myself.addr,
+                            nodes[i]->myself.port,
+                            nodes[i]->myself.id);
+        }
 
-		verify(nodes[i]->bucket_root);
-	}
-	fprintf(stderr, ": OK\n");
+        verify(nodes[i]->bucket_root);
+    }
+    fprintf(stderr, ": OK\n");
 }
 
 int
 main(int argc, char **argv)
 {
+    event_init();
 
-	event_init();
+    Test_One();
 
-	Test_One();
+    fprintf(stderr, "OK\n");
 
-	fprintf(stderr, "OK\n");
-
-	exit(0);
+    exit(0);
 }
+

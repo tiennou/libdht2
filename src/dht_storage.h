@@ -33,68 +33,64 @@
 
 struct dht_storage;
 
-#define DHT_STORAGE_KEY_REFRESH		3600
+#define DHT_STORAGE_KEY_REFRESH     3600
 
 struct dht_keyvalue {
-	SPLAY_ENTRY(dht_keyvalue) node;
+                          SPLAY_ENTRY(dht_keyvalue) node;
 
-	u_char *key;
-	size_t keylen;
+    u_char *              key;
+    size_t                keylen;
 
-	u_char *val;
-	size_t vallen;
+    u_char *              val;
+    size_t                vallen;
 
-	struct dht_storage *parent;
-	struct event ev_timeout;
-	struct event ev_refresh;
+    struct dht_storage *  parent;
+    struct event          ev_timeout;
+    struct event          ev_refresh;
 };
 
 struct dht_storage {
-	SPLAY_HEAD(dht_keyvaltree, dht_keyvalue) head;
+            SPLAY_HEAD(dht_keyvaltree, dht_keyvalue) head;
 
-	void (*refresh_cb)(struct dht_keyvalue *, void *);
-	void *refresh_cb_arg;
+    void    (*refresh_cb)(struct dht_keyvalue *, void *);
+    void *  refresh_cb_arg;
 };
 
 /* Prototypes */
 
-#define dht_keyval_new_char(x, y) dht_keyval_new((u_char*)x, strlen(x), (u_char*)y, strlen(y))
+#define dht_keyval_new_char(x, y) \
+    dht_keyval_new((u_char*)x, strlen(x), \
+                   (u_char*)y, strlen(y))
 
 /**
  * Creates a new key/value. Contents of *key and *val will be copied.
  */
-struct dht_keyvalue *
-dht_keyval_new(const u_char *key, size_t keylen,
-               const u_char *val, size_t vallen);
+struct dht_keyvalue *dht_keyval_new(const  u_char *key,
+                                    size_t keylen,
+                                    const  u_char *val,
+                                    size_t vallen);
 
-void
-dht_keyval_free(struct dht_keyvalue *keyval);
+void dht_keyval_free(struct dht_keyvalue *keyval);
 
-struct dht_storage *
-dht_storage_new(void (*cb)(struct dht_keyvalue *, void *),
-			    void *cb_arg);
+struct dht_storage *dht_storage_new(void (*cb)(struct dht_keyvalue *,
+                                               void *), void *     cb_arg);
 
-void
-dht_storage_free(struct dht_storage * storage);
+void dht_storage_free(struct dht_storage * storage);
 
-struct dht_keyvalue *
-dht_storage_find(struct dht_storage *storage,
-                const u_char *key, size_t keylen);
+struct dht_keyvalue *dht_storage_find(struct dht_storage *storage,
+                                      const               u_char *key,
+                                      size_t              keylen);
 
-int
-dht_storage_insert(struct dht_storage *storage,
-                  struct dht_keyvalue *keyval,
-                  int timeout);
+int dht_storage_insert(struct dht_storage * storage,
+                       struct dht_keyvalue *keyval,
+                       int                  timeout);
 
 /* Stores the data on disk */
-int
-dht_storage_store(struct dht_storage *storage, const char *root);
+int dht_storage_store(struct dht_storage *storage, const char *root);
 
-int
-dht_storage_restore(struct dht_storage *storage, const char *root);
+int dht_storage_restore(struct dht_storage *storage, const char *root);
 
 /* Debugging function that displays every stored key/value pair */
-void
-dht_storage_print(struct dht_storage *storage);
+void dht_storage_print(struct dht_storage *storage);
 
 #endif /* _DHT_STORAGE_ */

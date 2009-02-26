@@ -32,15 +32,21 @@
 #define _DHT_BITS_
 
 int dht_bits_hex2bin(u_char *bin, size_t len, const char *hex);
+
 void dht_bits_bin2hex(char *hex, const u_char *bin, size_t len);
 
 int dht_bits_compare(u_char *a, u_char *b, size_t length);
+
 int dht_byte_compare(u_char *a, size_t alen, u_char *b, size_t blen);
+
 int dht_bit_set(u_char *a, int bit);
+
 int dht_copy_bits(u_char *dst, u_char *src, int bits);
 
 u_char *dht_kademlia_xor(u_char *dst, u_char *a, u_char *b);
+
 int dht_kademlia_compare(u_char *a, u_char *b);
+
 u_char *dht_kademlia_distance(u_char *a, u_char *b);
 
 #endif /* _DHT_BITS_ */

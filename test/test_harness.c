@@ -34,8 +34,7 @@
 #include <CUnit/CUnit.h>
 #include <CUnit/Basic.h>
 
-void
-registerTestSuite(void);
+void registerTestSuite(void);
 
 int
 main(int argc, char **argv)
@@ -44,7 +43,7 @@ main(int argc, char **argv)
 
     registerTestSuite();
 
-    CU_basic_set_mode( CU_BRM_VERBOSE );
+    CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_ErrorCode err = CU_basic_run_tests();
 
     CU_cleanup_registry();
@@ -54,3 +53,4 @@ main(int argc, char **argv)
 
     return err;
 }
+

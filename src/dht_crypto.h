@@ -32,55 +32,68 @@
 
 #include <openssl/sha.h>
 
-#define RSA_KEY_BITS	1024
-#define RSA_KEY_E	37
+#define RSA_KEY_BITS 1024
+#define RSA_KEY_E 37
 
 enum keytype {
-	RSA_PRIVATE, RSA_PUBLIC
+    RSA_PRIVATE, RSA_PUBLIC
 };
 
 struct dht_pkinfo {
-	SPLAY_ENTRY(dht_pkinfo) node;
+                                SPLAY_ENTRY(dht_pkinfo) node;
 
-	u_char digest[SHA_DIGEST_LENGTH];
-	RSA *public_key;
-	struct dht_crypto_pkinfo *pkinfo;
+    u_char                      digest[SHA_DIGEST_LENGTH];
+    RSA *                       public_key;
+    struct dht_crypto_pkinfo *  pkinfo;
 };
 
 SPLAY_HEAD(dht_pkinfotree, dht_pkinfo);
 
 struct dht_pkinfo_store {
-	struct dht_pkinfotree root;
+    struct dht_pkinfotree    root;
 };
 
 int pkinfo_compare(struct dht_pkinfo *a, struct dht_pkinfo *b);
+
 SPLAY_PROTOTYPE(dht_pkinfotree, dht_pkinfo, node, pkinfo_compare);
 
-void	dht_crypto_init();
+void dht_crypto_init();
 
-void	dht_crypto_addrandom(void);
+void dht_crypto_addrandom(void);
 
-RSA	*dht_crypto_getkey(char *keyname);
-void	dht_crypto_rsa_print_id(FILE *fp, char *text, u_char *digest);
-RSA	*dht_crypto_rsa_read_key(char *name, enum keytype type);
-void	dht_crypto_rsa_write_key(char *name, RSA *key, enum keytype type);
-int	dht_crypto_rsa_idkey(RSA *key, u_char *data, size_t size);
+RSA *dht_crypto_getkey(char *keyname);
 
-struct dht_crypto_sig *
-	dht_crypto_make_sig(RSA *key, const u_char *data, size_t datlen);
-int	dht_crypto_verify_sig(RSA *key, struct dht_crypto_sig *dcs,
-	    const u_char *data, size_t datlen);
+void dht_crypto_rsa_print_id(FILE *fp, char *text, u_char *digest);
 
-struct dht_crypto_store *
-	dht_crypto_authorize_key(RSA *other_key, RSA *my_key, int serial);
-struct dht_crypto_pkinfo *
-	dht_crypto_make_pkinfo(RSA *mykey, int serial, char *name);
+RSA *dht_crypto_rsa_read_key(char *name, enum keytype type);
 
-int	dht_crypto_verify_store(struct dht_pkinfo_store *store,
-	    struct dht_crypto_store *update);
+void dht_crypto_rsa_write_key(char *name, RSA *key, enum keytype type);
+
+int dht_crypto_rsa_idkey(RSA *key, u_char *data, size_t size);
+
+struct dht_crypto_sig *dht_crypto_make_sig(       RSA *key,
+                                           const  u_char *data,
+                                           size_t datlen);
+
+int dht_crypto_verify_sig(RSA *                  key,
+                          struct dht_crypto_sig *dcs,
+                          const u_char *         data,
+                          size_t                 datlen);
+
+struct dht_crypto_store *dht_crypto_authorize_key(    RSA *other_key,
+                                                      RSA *my_key,
+                                                  int serial);
+
+struct dht_crypto_pkinfo *dht_crypto_make_pkinfo(      RSA *mykey,
+                                                 int   serial,
+                                                 char *name);
+
+int dht_crypto_verify_store(struct dht_pkinfo_store *store,
+                            struct dht_crypto_store *update);
 
 struct dht_pkinfo_store *dht_crypto_pkinfo_store_new();
-struct dht_pkinfo *
-	dht_crypto_internalize_pkinfo(struct dht_crypto_pkinfo *pkinfo);
+
+struct dht_pkinfo *dht_crypto_internalize_pkinfo(
+    struct dht_crypto_pkinfo *pkinfo);
 
 #endif /* _DHT_CRYPTO_ */
