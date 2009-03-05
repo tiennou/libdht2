@@ -282,7 +282,7 @@ new_node(uint16_t port)
     struct dht_node *dht = dht_new(port);
     struct kad_node *node = kad_node_new(dht);
 
-    dht_set_impl(dht, DHT_TYPE_KADEMLIA, &kad_dht_callbacks, node);
+    dht_set_impl(dht, /*DHT_TYPE_KADEMLIA,*/ &kad_dht_callbacks, node);
 
     /* Usually, we do not have to do that */
     kad_node_set_address(node, "127.0.0.1", port);
