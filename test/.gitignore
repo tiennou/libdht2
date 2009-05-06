@@ -1,0 +1,17 @@
+.deps
+.libs
+bits_test
+bits_test.o
+dht_crypto_test
+dht_crypto_test.o
+dht_group_test
+dht_group_test.o
+dht_storage_test
+dht_storage_test.o
+dht_test
+dht_test.o
+irc_proxy
+irc_proxy.o
+kad_test
+kad_test.o
+test_harness.o
