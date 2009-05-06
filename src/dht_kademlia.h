@@ -110,8 +110,7 @@ struct kad_bucket {
     int                      num_nodes;
     int                      num_subtree_nodes;
 
-    time_t                   last_refresh; /* records the time of last refresh
-                                            **/
+    time_t                   last_refresh; /* records the time of last refresh */
     int                      num_rpcs; /* outstanding rpcs on this one */
 };
 
@@ -259,7 +258,7 @@ int kad_node_insert(struct kad_node *node,
                     uint16_t         port,
                     u_char *         id);
 
-void kad_read_cb(struct addr *, uint16_t, u_char *, size_t, void *);
+void kad_read_cb(struct dht_message *msg, void *arg);
 
 void kad_rpc_handle_find_node(struct kad_node *node,
                               struct addr *    addr,
@@ -267,17 +266,28 @@ void kad_rpc_handle_find_node(struct kad_node *node,
                               struct kad_pkt * hdr,
                               size_t           datlen);
 
-int kad_send_rpc(struct kad_node *node,
-                 struct kad_node_id *id,
-                 uint8_t command,
-                 u_char *rpc_id,
-                 u_char *payload,
-                 size_t payload_len,
-                 void (*cb)(struct dht_rpc *,
-                            struct
-                            evbuffer
-                            *, void *),
-                 void *cb_arg);
+int kad_send_rpc(
+    struct kad_node *
+                    node,
+    struct kad_node_id *
+                    id,
+    uint8_t
+                    command,
+    u_char *
+                    rpc_id,
+    u_char *
+                    payload,
+    size_t
+                    payload_len,
+    void            (
+        *cb)(struct dht_rpc *,
+             struct
+                    evbuffer
+             *,
+                    void
+             *),
+    void *
+                    cb_arg);
 
 /* Implementation commands */
 int kad_impl_lookup(struct kad_node *node,
@@ -305,41 +315,74 @@ int kad_impl_find_value(struct kad_node *node,
 
 /* RPC commands */
 
-int kad_rpc_ping(struct kad_node *node,
-                 struct kad_node_id *nod_id,
-                 void (*cb)(struct dht_rpc *,
-                            struct
-                            evbuffer
-                            *, void *),
-                 void *cb_arg);
+int kad_rpc_ping(
+    struct kad_node *
+                    node,
+    struct kad_node_id *
+                    nod_id,
+    void            (
+        *cb)(struct dht_rpc *,
+             struct
+                    evbuffer
+             *,
+                    void
+             *),
+    void *
+                    cb_arg);
 
-int kad_rpc_find_node(struct kad_node *node,
-                      struct kad_node_id *id,
-                      u_char *node_id,
-                      void (*cb)(struct dht_rpc *,
-                                 struct
-                                 evbuffer
-                                 *, void *),
-                      void *cb_arg);
+int kad_rpc_find_node(
+    struct kad_node *
+                    node,
+    struct kad_node_id *
+                    id,
+    u_char *
+                    node_id,
+    void            (
+        *cb)(struct dht_rpc *,
+             struct
+                    evbuffer
+             *,
+                    void
+             *),
+    void *
+                    cb_arg);
 
-int kad_rpc_find_value(struct kad_node *node,
-                       struct kad_node_id *id,
-                       u_char *node_id,
-                       void (*cb)(struct dht_rpc *,
-                                  struct
-                                  evbuffer
-                                  *, void *),
-                       void *cb_arg);
+int kad_rpc_find_value(
+    struct kad_node *
+                    node,
+    struct kad_node_id *
+                    id,
+    u_char *
+                    node_id,
+    void            (
+        *cb)(struct dht_rpc *,
+             struct
+                    evbuffer
+             *,
+                    void
+             *),
+    void *
+                    cb_arg);
 
-int kad_rpc_store(struct kad_node *node,
-                  struct kad_node_id *id,
-                  u_char *node_id,
-                  u_char *value,
-                  size_t vallen,
-                  void (*cb)(struct dht_rpc *,
-                             struct
-                             evbuffer
-                             *, void *),
-                  void *cb_arg);
+int kad_rpc_store(
+    struct kad_node *
+                    node,
+    struct kad_node_id *
+                    id,
+    u_char *
+                    node_id,
+    u_char *
+                    value,
+    size_t
+                    vallen,
+    void            (
+        *cb)(struct dht_rpc *,
+             struct
+                    evbuffer
+             *,
+                    void
+             *),
+    void *
+                    cb_arg);
 
 #endif /* _DHT_KADMELIA_ */

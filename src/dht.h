@@ -63,8 +63,19 @@ struct dht_node_id {
     uint16_t       port;
 };
 
-typedef void (*dht_readcb)(struct addr *srcip, uint16_t port,
-                           u_char *data, size_t data_len, void *arg);
+/* DHT internal data structures */
+struct dht_message {
+                       TAILQ_ENTRY(dht_message) next;
+
+    struct addr        dst;
+    uint16_t           port;
+    uint16_t           type;
+
+    struct evbuffer *  buffer;
+};
+
+typedef void (*dht_readcb)(struct dht_message *msg, void *arg);
+typedef void (*dht_writecb)(struct dht_message *msg, void *arg);
 
 /*
  * Callbacks that a DHT implementation needs to provide
@@ -116,9 +127,11 @@ struct dht_pkthdr {
     uint8_t     signature[SHA_DIGEST_LENGTH];
 } __attribute__ ((__packed__));
 
-#define DHT_VERSION     0x0100   /* major 1 minor 0 */
-#define DHT_TYPE_ZLIB      0x0001   /* data is compressed */
+#define DHT_VERSION        0x0100  /* major 1 minor 0 */
+
+#define DHT_TYPE_ZLIB      0x0001  /* data is compressed */
 #define DHT_TYPE_KADEMLIA  0x0002  /* Kadmelia DHT */
+#define DHT_TYPE_LIBDHT    0x0004  /* libdht protocol */
 #define DHT_TYPE_GROUP     0x0100  /* Group communication protocol */
 
 /* A single outstanding RPC */
@@ -164,26 +177,15 @@ int rpc_id_compare(struct dht_rpc *, struct dht_rpc *);
 
 SPLAY_PROTOTYPE(dht_rpctree, dht_rpc, node, rpc_id_compare);
 
-/* DHT internal data structures */
-struct dht_message {
-                   TAILQ_ENTRY(dht_message) next;
-
-    struct addr    dst;
-    uint16_t       port;
-    uint16_t       type;
-
-    u_char *       data;
-    size_t         datlen;
-};
-
 /* Track which application layer protocols have registered callbacks */
 struct dht_type_callback {
-                  SPLAY_ENTRY(dht_type_callback) node;
+                   SPLAY_ENTRY(dht_type_callback) node;
 
-    uint16_t      type;
+    uint16_t       type;
 
-    dht_readcb    cb;
-    void *        cb_arg;
+    dht_readcb     read_cb;
+    dht_writecb    write_cb;
+    void *         cb_arg;
 };
 
 struct dht_node {
@@ -204,7 +206,7 @@ struct dht_node {
     void *  store_cb_arg;
 
     /* Application specific read callbacks for all possible protocols */
-    SPLAY_HEAD(dht_readcb_tree, dht_type_callback) read_cbs;
+    SPLAY_HEAD(dht_protocb_tree, dht_type_callback) proto_cbs;
 
     /* Messages we are waiting for to be sent */
     TAILQ_HEAD(messageq, dht_message) messages;
@@ -217,7 +219,6 @@ struct dht_node * dht_new(uint16_t port);
 void dht_free(struct dht_node * node);
 
 void dht_set_impl(struct                      dht_node *,
-                  uint16_t                    type,
                   const struct dht_callbacks *impl_cbs,
                   void *                      impl_arg);
 
@@ -248,6 +249,7 @@ void dht_rpc_delay_callback(struct evbuffer *evbuf,
 int dht_register_type(struct dht_node *node,
                       uint16_t         type,
                       dht_readcb       readcb,
+                      dht_writecb      writecb,
                       void *           cb_arg);
 
 struct dht_type_callback *dht_find_type(struct dht_node *node,

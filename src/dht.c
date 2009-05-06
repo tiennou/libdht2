@@ -85,8 +85,8 @@ dht_type_compare(struct dht_type_callback *a, struct dht_type_callback *b)
     return 0;
 }
 
-SPLAY_PROTOTYPE(dht_readcb_tree, dht_type_callback, node, dht_type_compare);
-SPLAY_GENERATE(dht_readcb_tree, dht_type_callback, node, dht_type_compare);
+SPLAY_PROTOTYPE(dht_protocb_tree, dht_type_callback, node, dht_type_compare);
+SPLAY_GENERATE(dht_protocb_tree, dht_type_callback, node, dht_type_compare);
 
 int
 rpc_id_compare(struct dht_rpc *a, struct dht_rpc *b)
@@ -128,58 +128,19 @@ dht_node_id_ascii(u_char *id)
 }
 
 /*
- * Associates a DHT node we a given protocol implementation
+ * Associates a DHT node with a given protocol implementation
  */
 
 void
 dht_set_impl(struct dht_node *           node,
-             uint16_t                    type,
              const struct dht_callbacks *impl_cbs,
              void *                      impl_arg)
 {
     assert(node->impl_cbs == NULL);
     assert(node->impl_arg == NULL);
-    assert(dht_find_type(node, type) == NULL);
 
-    node->dht_type = type;
     node->impl_cbs = impl_cbs;
     node->impl_arg = impl_arg;
-
-    /* Application specific read callback */
-    dht_register_type(node, type, impl_cbs->read, impl_arg);
-}
-
-struct dht_type_callback *
-dht_find_type(struct dht_node *node, uint16_t type)
-{
-    struct dht_type_callback tmp;
-
-    tmp.type = type;
-    return SPLAY_FIND(dht_readcb_tree, &node->read_cbs, &tmp);
-}
-
-int
-dht_register_type(struct dht_node *node,
-                  uint16_t         type,
-                  dht_readcb       readcb,
-                  void *           cb_arg)
-{
-    struct dht_type_callback *typecb;
-
-    if (dht_find_type(node, type) != NULL)
-        return -1;
-
-    typecb = calloc(1, sizeof(struct dht_type_callback));
-    if (typecb == NULL)
-        err(1, "%s: calloc", __func__);
-
-    typecb->type = type;
-    typecb->cb = readcb;
-    typecb->cb_arg = cb_arg;
-
-    SPLAY_INSERT(dht_readcb_tree, &node->read_cbs, typecb);
-
-    return 0;
 }
 
 /*
@@ -195,10 +156,78 @@ dht_init(void)
     dht_crypto_init();
 }
 
+int
+dht_libdht_readcb(struct dht_message *msg, void *arg)
+{
+    struct dht_pkthdr *hdr = (void*)EVBUFFER_DATA(msg->buffer);
+    SHA_CTX ctx;
+    u_char digest[SHA_DIGEST_LENGTH];
+    u_char *payload = (u_char *)(hdr + 1);
+    ssize_t payload_len;
+
+    payload_len = EVBUFFER_LENGTH(msg->buffer) - sizeof(struct dht_pkthdr);
+
+    if (EVBUFFER_LENGTH(msg->buffer) < sizeof(struct dht_pkthdr) ||
+        payload_len <= 0) {
+        warnx("%s: short read from %s", __func__, addr_ntoa(&msg->dst));
+        return -1;
+    }
+
+    if (hdr->version != DHT_VERSION) {
+        warnx("%s: unsupported version %d type %d from %s",
+              __func__, hdr->version, hdr->type, addr_ntoa(&msg->dst));
+        return -1;
+    }
+
+    /* Let's verify the signature - this is going to be authed later */
+    SHA1_Init(&ctx);
+    SHA1_Update(&ctx, payload, payload_len);
+    SHA1_Final(digest, &ctx);
+
+    if (memcmp(digest, hdr->signature, sizeof(digest))) {
+        warnx("%s: bad signature from %s", __func__, addr_ntoa(&msg->dst));
+        return -2;
+    }
+
+    DFPRINTF(3, (stderr, "%s: received %d bytes from %s:%d\n",
+                 __func__, (int)payload_len,
+                 addr_ntoa(&addr), ntohs(sin.sin_port)));
+
+    evbuffer_drain(msg->buffer, sizeof(struct dht_pkthdr));
+
+    return hdr->type;
+}
+
+int
+dht_libdht_writecb(struct dht_message *msg, void *arg)
+{
+    struct dht_node *node = arg;
+    size_t pktsize = EVBUFFER_LENGTH(msg->buffer)
+                     + sizeof(struct dht_pkthdr);
+    struct dht_pkthdr *pkthdr = malloc(pktsize);
+    SHA_CTX ctx;
+
+    /* Create the signature */
+    SHA1_Init(&ctx);
+    SHA1_Update(&ctx, EVBUFFER_DATA(
+                    msg->buffer),
+                (unsigned long)EVBUFFER_LENGTH(msg->buffer));
+    SHA1_Final(pkthdr->signature, &ctx);
+
+    pkthdr->version = DHT_VERSION;
+    pkthdr->type = node->dht_type;
+    memcpy(pkthdr + 1, EVBUFFER_DATA(msg->buffer),
+           EVBUFFER_LENGTH(msg->buffer));
+
+    evbuffer_drain(msg->buffer, EVBUFFER_LENGTH(msg->buffer));
+
+    evbuffer_add(msg->buffer, pkthdr, pktsize);
+    return 0;
+}
+
 /*
  * Creates a new DHT node that is not associated with anything.
  */
-
 struct dht_node *
 dht_new(uint16_t port)
 {
@@ -216,7 +245,7 @@ dht_new(uint16_t port)
     DFPRINTF(3, (stderr, "%s: bound fd %d to port %d\n",
                  __func__, fd, port));
 
-    SPLAY_INIT(&node->read_cbs);
+    SPLAY_INIT(&node->proto_cbs);
     TAILQ_INIT(&node->messages);
 
     event_set(&node->ev_write, fd, EV_WRITE, dht_write_cb, node);
@@ -238,17 +267,17 @@ dht_free(struct dht_node * node)
     close(node->fd);
 
     /* Then cleanup our internal structures */
-    for (typecb = SPLAY_MIN(dht_readcb_tree, &node->read_cbs);
+    for (typecb = SPLAY_MIN(dht_protocb_tree, &node->proto_cbs);
          typecb != NULL;
          typecb = next) {
-        next = SPLAY_NEXT(dht_readcb_tree, &node->read_cbs, typecb);
-        SPLAY_REMOVE(dht_readcb_tree, &node->read_cbs, typecb);
+        next = SPLAY_NEXT(dht_protocb_tree, &node->proto_cbs, typecb);
+        SPLAY_REMOVE(dht_protocb_tree, &node->proto_cbs, typecb);
         free(typecb);
     }
 
     TAILQ_FOREACH(msg, &node->messages, next) {
         TAILQ_REMOVE(&node->messages, msg, next);
-        free(msg->data);
+        evbuffer_free(msg->buffer);
         free(msg);
     }
 
@@ -304,60 +333,33 @@ dht_ping(struct dht_node *node, u_char *id)
 void
 dht_read_cb(int fd, short what, void *arg)
 {
-    static u_char buffer[4096];
+    static u_char bufferp[4096];
     struct dht_node *node = arg;
-    struct dht_pkthdr *hdr = (struct dht_pkthdr *)buffer;
-    struct dht_type_callback *typecb;
     struct sockaddr_in sin;
     socklen_t sinlen = sizeof(sin);
-    SHA_CTX ctx;
-    u_char digest[SHA_DIGEST_LENGTH];
+    struct dht_message *msg;
     ssize_t res;
-    u_char *payload = (u_char *)(hdr + 1);
-    ssize_t payload_len;
-    struct addr addr;
 
-    res = recvfrom(fd, buffer, sizeof(buffer), 0,
-                   (struct sockaddr *)&sin, &sinlen);
+    res = recvfrom(fd,
+                   bufferp,
+                   sizeof(bufferp),
+                   0,
+                   (struct sockaddr *)&sin,
+                   &sinlen);
     if (res == -1) {
         /* Oops, what do we do now */
         warn("%s: recvfrom", __func__);
         goto reschedule;
     }
 
-    /* Get the IP address */
-    addr_ston((struct sockaddr *)&sin, &addr);
+    /* Build the message */
+    msg = malloc(sizeof(struct dht_message));
+    addr_ston((struct sockaddr *)&sin, &msg->dst);
+    msg->port = sin.sin_port;
+    msg->buffer = evbuffer_new();
+    evbuffer_add(msg->buffer, bufferp, res);
 
-    payload_len = res - sizeof(struct dht_pkthdr);
-
-    if (res < sizeof(struct dht_pkthdr) || payload_len <= 0) {
-        warnx("%s: short read from %s", __func__, addr_ntoa(&addr));
-        goto reschedule;
-    }
-
-    typecb = dht_find_type(node, hdr->type);
-    if (hdr->version != DHT_VERSION || typecb == NULL) {
-        warnx("%s: unsupported version %d type %d from %s",
-              __func__, hdr->version, hdr->type, addr_ntoa(&addr));
-        goto reschedule;
-    }
-
-    /* Let's verify the signature - this is going to be authed later */
-    SHA1_Init(&ctx);
-    SHA1_Update(&ctx, payload, payload_len);
-    SHA1_Final(digest, &ctx);
-
-    if (memcmp(digest, hdr->signature, sizeof(digest))) {
-        warnx("%s: bad signature from %s", __func__, addr_ntoa(&addr));
-        goto reschedule;
-    }
-
-    DFPRINTF(3, (stderr, "%s: received %d bytes from %s:%d\n",
-                 __func__, (int)payload_len,
-                 addr_ntoa(&addr), ntohs(sin.sin_port)));
-
-    (*typecb->cb)(&addr, ntohs(sin.sin_port),
-                  payload, payload_len, typecb->cb_arg);
+    node->impl_cbs->read(msg, node->impl_arg);
 
 reschedule:
     event_add(&node->ev_read, NULL);
@@ -366,46 +368,34 @@ reschedule:
 void
 dht_write_cb(int fd, short what, void *arg)
 {
-    static struct dht_pkthdr pkthdr;
     struct dht_node *node = arg;
-    struct dht_message *tmp = TAILQ_FIRST(&node->messages);
+    struct dht_message *msg = TAILQ_FIRST(&node->messages);
     struct sockaddr_in sin;
     int res;
     struct msghdr hdr;
-    struct iovec io[2];
-    SHA_CTX ctx;
+    struct iovec io[1];
 
-    addr_ntos(&tmp->dst, (struct sockaddr *)&sin);
-    sin.sin_port = htons(tmp->port);
+    addr_ntos(&msg->dst, (struct sockaddr *)&sin);
+    sin.sin_port = htons(msg->port);
 
-    /* Create the signature */
-    SHA1_Init(&ctx);
-    SHA1_Update(&ctx, tmp->data, tmp->datlen);
-    SHA1_Final(pkthdr.signature, &ctx);
-
-    pkthdr.version = DHT_VERSION;
-    pkthdr.type = tmp->type;
-
-    /* Scatter gather the header and the payload */
+    /* Build up the msghdr for sendmsg */
     memset(&hdr, 0, sizeof(hdr));
     hdr.msg_name = &sin;
     hdr.msg_namelen = sizeof(sin);
     hdr.msg_iov = io;
-    hdr.msg_iovlen = 2;
+    hdr.msg_iovlen = 1;
 
-    io[0].iov_base = &pkthdr;
-    io[0].iov_len = sizeof(pkthdr);
-    io[1].iov_base = tmp->data;
-    io[1].iov_len = tmp->datlen;
+    io[0].iov_base = EVBUFFER_DATA(msg->buffer);
+    io[0].iov_len = EVBUFFER_LENGTH(msg->buffer);
 
     res = sendmsg(fd, &hdr, 0);
     if (res == -1)
-        warn("%s: sendmsg: %s", __func__, addr_ntoa(&tmp->dst));
+        warn("%s: sendmsg: %s", __func__, addr_ntoa(&msg->dst));
 
     /* Remove this message */
-    TAILQ_REMOVE(&node->messages, tmp, next);
-    free(tmp->data);
-    free(tmp);
+    TAILQ_REMOVE(&node->messages, msg, next);
+    evbuffer_free(msg->buffer);
+    free(msg);
 
     /* Schedule the send for the next message */
     if (TAILQ_FIRST(&node->messages) != NULL)
@@ -430,18 +420,14 @@ dht_send(struct dht_node *node,
     if (tmp == NULL)
         return -1;
 
-    /* make sure that we have a callback for this protocol */
-    assert(dht_find_type(node, type) != NULL);
-
     tmp->dst = *dst;
     tmp->port = port;
-    tmp->type = type;
-    tmp->data = data;
-    tmp->datlen = datlen;
+    tmp->buffer = evbuffer_new();
+    evbuffer_add(tmp->buffer, data, datlen);
 
     TAILQ_INSERT_TAIL(&node->messages, tmp, next);
 
-    /* Schedule the event to written to the network */
+    /* Schedule the event to be written to the network */
     if (!event_pending(&node->ev_write, EV_WRITE, NULL))
         event_add(&node->ev_write, NULL);
 

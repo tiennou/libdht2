@@ -494,8 +494,8 @@ dht_group_register(struct dht_group *group)
 {
     int res;
 
-    res = dht_register_type(group->dht, DHT_TYPE_GROUP,
-                            dht_group_read_cb, group);
+/*    res = dht_register_type(group->dht, DHT_TYPE_GROUP,
+                            dht_group_read_cb, group);*/
 
     return res;
 }
