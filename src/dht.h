@@ -31,7 +31,15 @@
 #ifndef _DHT_H_
 #define _DHT_H_
 
+#include <sys/types.h>
+#include <sys/tree.h>
+#include <sys/queue.h>
+
 #include <openssl/sha.h>
+
+#include <event.h>
+
+#include <dnet.h>
 
 #ifdef DEBUG
  #define DFPRINTF(x, y) \
