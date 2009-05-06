@@ -391,8 +391,6 @@ dht_write_cb(int fd, short what, void *arg)
     res = sendmsg(fd, &hdr, 0);
     if (res == -1)
         warn("%s: sendmsg: %s", __func__, addr_ntoa(&msg->dst));
-    if (res != EVBUFFER_LENGTH(msg->buffer))
-        warnx("%s: sendmsg: %s: failed to send complete msg", __func__, addr_ntoa(&msg->dst));
 
     /* Remove this message */
     TAILQ_REMOVE(&node->messages, msg, next);
