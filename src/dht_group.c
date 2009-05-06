@@ -1640,8 +1640,8 @@ dht_group_send_rpc(struct dht_group *group,
         goto error;
     memcpy(data, EVBUFFER_DATA(_tmp), datlen);
 
-    dht_send(group->dht, DHT_TYPE_GROUP,
-             &id->addr, id->port, data, datlen);
+    dht_send(group->dht, &id->addr, id->port,
+             data, datlen);
 
     dht_group_pkt_free(pkt);
 

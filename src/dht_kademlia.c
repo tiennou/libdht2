@@ -1878,8 +1878,8 @@ kad_send_rpc(struct kad_node *node,
     if (payload_len)
         memcpy((u_char *)(pkt + 1), payload, payload_len);
 
-    dht_send(node->dht, DHT_TYPE_KADEMLIA,
-             &id->addr, id->port, (u_char *)pkt, pktlen);
+    dht_send(node->dht, &id->addr, id->port, 
+             (u_char *)pkt, pktlen);
 
     return 0;
 }

@@ -256,7 +256,6 @@ struct dht_type_callback *dht_find_type(struct dht_node *node,
                                         uint16_t         type);
 
 int dht_send(struct dht_node *node,
-             uint16_t         type,
              struct addr *    dst,
              uint16_t         port,
              u_char *         data,

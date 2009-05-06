@@ -411,7 +411,6 @@ dht_write_cb(int fd, short what, void *arg)
 
 int
 dht_send(struct dht_node *node,
-         uint16_t         type,
          struct addr *    dst,
          uint16_t         port,
          u_char *         data,
