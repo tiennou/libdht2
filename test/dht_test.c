@@ -56,6 +56,8 @@ static int test_one_count;
 void
 Test_One_Ping_Reply(struct dht_rpc *rpc, struct evbuffer *evbuf, void *arg)
 {
+    if (evbuf == NULL)
+        fprintf(stderr, "\t%s: Timeout\n", __func__);
     if (++test_one_count == 2)
         event_loopexit(NULL);
 }

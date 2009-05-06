@@ -355,7 +355,7 @@ dht_read_cb(int fd, short what, void *arg)
     /* Build the message */
     msg = malloc(sizeof(struct dht_message));
     addr_ston((struct sockaddr *)&sin, &msg->dst);
-    msg->port = sin.sin_port;
+    msg->port = ntohs(sin.sin_port);
     msg->buffer = evbuffer_new();
     evbuffer_add(msg->buffer, bufferp, res);
 
@@ -391,6 +391,8 @@ dht_write_cb(int fd, short what, void *arg)
     res = sendmsg(fd, &hdr, 0);
     if (res == -1)
         warn("%s: sendmsg: %s", __func__, addr_ntoa(&msg->dst));
+    if (res != EVBUFFER_LENGTH(msg->buffer))
+        warnx("%s: sendmsg: %s: failed to send complete msg", __func__, addr_ntoa(&msg->dst));
 
     /* Remove this message */
     TAILQ_REMOVE(&node->messages, msg, next);
