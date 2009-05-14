@@ -66,12 +66,23 @@ int make_socket_ai(int (*f)(int, const struct sockaddr *, socklen_t),
 
 int make_socket(int (*f)(int, const struct sockaddr *, socklen_t),
                 int type,
-                char *address,
+                const char *address,
                 uint16_t port);
 
-void dht_read_cb(int, short, void *);
+enum dht_buffer_pair {
+    net = 0,
+    cli
+};
 
+void dht_read_cb(int, short, void *);
 void dht_write_cb(int, short, void *);
+
+void dht_net_read_cb(struct bufferevent *buf, void *arg);
+void dht_net_write_cb(struct bufferevent *buf, void *arg);
+void dht_net_err_cb(struct bufferevent *buf, short what, void *arg);
+void dht_cli_read_cb(struct bufferevent *buf, void *arg);
+void dht_cli_write_cb(struct bufferevent *buf, void *arg);
+void dht_cli_err_cb(struct bufferevent *buf, short what, void *arg);
 
 int
 dht_type_compare(struct dht_type_callback *a, struct dht_type_callback *b)
@@ -130,7 +141,6 @@ dht_node_id_ascii(u_char *id)
 /*
  * Associates a DHT node with a given protocol implementation
  */
-
 void
 dht_set_impl(struct dht_node *           node,
              const struct dht_callbacks *impl_cbs,
@@ -143,10 +153,37 @@ dht_set_impl(struct dht_node *           node,
     node->impl_arg = impl_arg;
 }
 
+void
+dht_add_filter(struct dht_node *node,
+               const char *filter_name,
+               bufferevent_filter_cb input_filter,
+               bufferevent_filter_cb output_filter)
+{
+    struct dht_filter *filter = calloc(1, sizeof(struct dht_filter));
+    struct bufferevent *last_buf = node->ev_pair[net];
+    
+    if (!TAILQ_EMPTY(&node->filters))
+        last_buf = TAILQ_FIRST(&node->filters)->ev_filter;
+    
+    int name_len = strlen(filter_name);
+    filter->filter_name = calloc(name_len, sizeof(char));
+    strncpy(filter->filter_name, filter_name, name_len);
+    filter->ev_filter = bufferevent_filter_new(last_buf, input_filter, output_filter, 0, NULL, node);
+    
+    TAILQ_INSERT_HEAD(&node->filters, filter, next);
+}
+
+void
+dht_remove_filter(struct dht_node *node, const char *filter_name)
+{
+    /* TODO */
+}
+
+struct event_base *dht_event_base = NULL;
+
 /*
  * Initializes global components of the DHT library.
  */
-
 void
 dht_init(void)
 {
@@ -154,8 +191,12 @@ dht_init(void)
     dht_rand_init();
     dht_group_init();
     dht_crypto_init();
+    
+    if (dht_event_base == NULL)
+        dht_event_base = event_base_new();
 }
 
+#if 0
 int
 dht_libdht_readcb(struct dht_message *msg, void *arg)
 {
@@ -224,20 +265,49 @@ dht_libdht_writecb(struct dht_message *msg, void *arg)
     evbuffer_add(msg->buffer, pkthdr, pktsize);
     return 0;
 }
+#endif
+
+#define DHT_MESSAGE_LENGTH(x) sizeof(struct dht_message) + x
+
+struct dht_message *
+dht_message_new(struct addr addr, uint16_t port, size_t data_len, u_char *data) {
+    struct dht_message *msg = calloc(1, sizeof(struct dht_message) + data_len);
+    
+    msg->next.tqe_prev = NULL;
+    msg->next.tqe_next = NULL;
+    
+    msg->dst = addr;
+    msg->port = port;
+    msg->datlen = data_len;
+    msg->data = (void*)msg + sizeof(struct dht_message);
+    memcpy(msg->data, data, data_len);
+    
+    return msg;
+}
+
+
+void
+dht_message_free(struct dht_message *msg) {
+    free(msg);
+}
 
 /*
  * Creates a new DHT node that is not associated with anything.
  */
 struct dht_node *
-dht_new(uint16_t port)
+dht_new(const char *addr, uint16_t port)
 {
     struct dht_node *node = calloc(1, sizeof(struct dht_node));
     int fd;
+    int ret;
 
     if (node == NULL)
         err(1, "%s: calloc", __func__);
 
-    fd = make_socket(bind, SOCK_DGRAM, "0.0.0.0", port);
+    node->ev_base = dht_event_base;
+    
+    /* Create the low level UDP reader */
+    fd = make_socket(bind, SOCK_DGRAM, addr, port);
     if (fd == -1)
         err(1, "%s: make_socket", __func__);
     node->fd = fd;
@@ -245,12 +315,24 @@ dht_new(uint16_t port)
     DFPRINTF(3, (stderr, "%s: bound fd %d to port %d\n",
                  __func__, fd, port));
 
+    /* Create our events */
+    node->ev_write = event_new(node->ev_base, fd, EV_WRITE, dht_write_cb, node);
+    node->ev_read = event_new(node->ev_base, fd, EV_READ, dht_read_cb, node);
+    
+    ret = bufferevent_pair_new(node->ev_base, 0, node->ev_pair);
+    if (ret != 0)
+        err(1, "%s: bufferevent_pair_new", __func__);
+    
+    bufferevent_setcb(node->ev_pair[net], dht_net_read_cb, NULL, dht_net_err_cb, node);
+    bufferevent_setcb(node->ev_pair[cli], dht_cli_read_cb, NULL, dht_cli_err_cb, node);
+    
     SPLAY_INIT(&node->proto_cbs);
     TAILQ_INIT(&node->messages);
-
-    event_set(&node->ev_write, fd, EV_WRITE, dht_write_cb, node);
-    event_set(&node->ev_read, fd, EV_READ, dht_read_cb, node);
-    event_add(&node->ev_read, NULL);
+    
+    /* Start reading from network */
+    bufferevent_enable(node->ev_pair[net], EV_READ | EV_WRITE);
+    bufferevent_enable(node->ev_pair[cli], EV_READ | EV_WRITE);
+    event_add(node->ev_read, NULL);
 
     return node;
 }
@@ -262,8 +344,8 @@ dht_free(struct dht_node * node)
     struct dht_message *msg;
 
     /* First close network stuff */
-    event_del(&node->ev_read);
-    event_del(&node->ev_write);
+    event_del(node->ev_read);
+    event_del(node->ev_write);
     close(node->fd);
 
     /* Then cleanup our internal structures */
@@ -277,8 +359,7 @@ dht_free(struct dht_node * node)
 
     TAILQ_FOREACH(msg, &node->messages, next) {
         TAILQ_REMOVE(&node->messages, msg, next);
-        evbuffer_free(msg->buffer);
-        free(msg);
+        dht_message_free(msg);
     }
 
     free(node);
@@ -328,8 +409,7 @@ dht_ping(struct dht_node *node, u_char *id)
     return node->impl_cbs->ping(node->impl_arg, id);
 }
 
-/* Callbacks */
-
+/* Low-level callbacks */
 void
 dht_read_cb(int fd, short what, void *arg)
 {
@@ -337,6 +417,7 @@ dht_read_cb(int fd, short what, void *arg)
     struct dht_node *node = arg;
     struct sockaddr_in sin;
     socklen_t sinlen = sizeof(sin);
+    struct addr addr;
     struct dht_message *msg;
     ssize_t res;
 
@@ -353,16 +434,16 @@ dht_read_cb(int fd, short what, void *arg)
     }
 
     /* Build the message */
-    msg = malloc(sizeof(struct dht_message));
-    addr_ston((struct sockaddr *)&sin, &msg->dst);
-    msg->port = ntohs(sin.sin_port);
-    msg->buffer = evbuffer_new();
-    evbuffer_add(msg->buffer, bufferp, res);
+    addr_ston((struct sockaddr *)&sin, &addr);
+    msg = dht_message_new(addr, ntohs(sin.sin_port), res, bufferp);
 
-    node->impl_cbs->read(msg, node->impl_arg);
+    bufferevent_write(node->ev_pair[net], msg, DHT_MESSAGE_LENGTH(res));
+    bufferevent_flush(node->ev_pair[net], EV_WRITE, BEV_NORMAL);
+    
+    dht_message_free(msg);
 
 reschedule:
-    event_add(&node->ev_read, NULL);
+    event_add(node->ev_read, NULL);
 }
 
 void
@@ -385,8 +466,8 @@ dht_write_cb(int fd, short what, void *arg)
     hdr.msg_iov = io;
     hdr.msg_iovlen = 1;
 
-    io[0].iov_base = EVBUFFER_DATA(msg->buffer);
-    io[0].iov_len = EVBUFFER_LENGTH(msg->buffer);
+    io[0].iov_base = msg->data;
+    io[0].iov_len = msg->datlen;
 
     res = sendmsg(fd, &hdr, 0);
     if (res == -1)
@@ -394,19 +475,80 @@ dht_write_cb(int fd, short what, void *arg)
 
     /* Remove this message */
     TAILQ_REMOVE(&node->messages, msg, next);
-    evbuffer_free(msg->buffer);
-    free(msg);
 
     /* Schedule the send for the next message */
     if (TAILQ_FIRST(&node->messages) != NULL)
-        event_add(&node->ev_write, NULL);
+        event_add(node->ev_write, NULL);
+}
+
+
+void
+dht_net_err_cb(struct bufferevent *bev, short what, void *arg) {
+    if (what & EVBUFFER_TIMEOUT)
+        warnx("%s: timeout", __FUNCTION__);
+    if (what & EVBUFFER_READ)
+        warnx("%s: read", __FUNCTION__);
+    if (what & EVBUFFER_WRITE)
+        warnx("%s: write", __FUNCTION__);
+    if (what & EVBUFFER_EOF)
+        warnx("%s: eof", __FUNCTION__);
+    if (what & EVBUFFER_CONNECTED)
+        warnx("%s: connected", __FUNCTION__);
+}
+
+void
+dht_cli_err_cb(struct bufferevent *bev, short what, void *arg) {
+    if (what & EVBUFFER_TIMEOUT)
+        warnx("%s: timeout", __FUNCTION__);
+    if (what & EVBUFFER_READ)
+        warnx("%s: read", __FUNCTION__);
+    if (what & EVBUFFER_WRITE)
+        warnx("%s: write", __FUNCTION__);
+    if (what & EVBUFFER_EOF)
+        warnx("%s: eof", __FUNCTION__);
+    if (what & EVBUFFER_CONNECTED)
+        warnx("%s: connected", __FUNCTION__);
+}
+
+void
+dht_net_read_cb(struct bufferevent *bev, void *arg) {
+    struct dht_node *node = (struct dht_node*)arg;
+    struct evbuffer *buf = bufferevent_get_input(bev);
+    size_t msglen = evbuffer_get_length(buf);
+    struct dht_message *msg = calloc(msglen, sizeof(u_char*));
+    
+    warnx("%s %d", __FUNCTION__, msglen);
+    
+    memcpy(msg, evbuffer_pullup(buf, msglen), msglen);
+    evbuffer_drain(buf, msglen);
+    
+    /* Schedule the event to be written to the network */
+    TAILQ_INSERT_TAIL(&node->messages, msg, next);
+    
+    if (!event_pending(node->ev_write, EV_WRITE, NULL))
+        event_add(node->ev_write, NULL);
+}
+
+void
+dht_cli_read_cb(struct bufferevent *bev, void *arg) {
+    struct dht_node *node = arg;
+    struct evbuffer *buf = bufferevent_get_input(bev);
+    struct dht_message *msg = NULL;
+    size_t msglen = evbuffer_get_length(buf);
+    
+    warnx("%s %d", __FUNCTION__, msglen);
+    
+    msg = (struct dht_message*)evbuffer_pullup(buf, msglen);
+    
+    node->impl_cbs->read(msg, node->impl_arg);
+    
+    evbuffer_drain(buf, msglen);
 }
 
 /*
  * Queues a message for delivery to the network.
  * We take ownership of the data and free it after it got sent.
  */
-
 int
 dht_send(struct dht_node *node,
          struct addr *    dst,
@@ -414,27 +556,22 @@ dht_send(struct dht_node *node,
          u_char *         data,
          size_t           datlen)
 {
-    struct dht_message *tmp = calloc(1, sizeof(struct dht_message));
-
+    struct dht_message *tmp = dht_message_new(*dst, port, datlen, data);
+    int ret;
+    
     if (tmp == NULL)
         return -1;
 
-    tmp->dst = *dst;
-    tmp->port = port;
-    tmp->buffer = evbuffer_new();
-    evbuffer_add(tmp->buffer, data, datlen);
-
-    TAILQ_INSERT_TAIL(&node->messages, tmp, next);
-
-    /* Schedule the event to be written to the network */
-    if (!event_pending(&node->ev_write, EV_WRITE, NULL))
-        event_add(&node->ev_write, NULL);
-
-    return 0;
+    ret = DHT_MESSAGE_LENGTH(datlen);
+    ret = bufferevent_write(node->ev_pair[cli], tmp, DHT_MESSAGE_LENGTH(datlen));
+    bufferevent_flush(node->ev_pair[cli], EV_WRITE, BEV_NORMAL);
+    
+    dht_message_free(tmp);
+    
+    return ret;
 }
 
 /* Either connect or bind */
-
 int
 make_socket_ai(int (*f)(int, const struct sockaddr *, socklen_t),
                int type,
@@ -491,7 +628,7 @@ out:
 int
 make_socket(int (*f)(int, const struct sockaddr *, socklen_t),
             int type,
-            char *address,
+            const char *address,
             uint16_t port)
 {
     struct addrinfo ai, *aitop;
@@ -566,6 +703,7 @@ dht_rpc_new(struct dht_rpcs *rpcs,
     SPLAY_INSERT(dht_rpctree, &rpcs->rpcs, rpc);
 
     evtimer_set(&rpc->ev_cb, dht_rpc_timeout, rpc);
+    event_base_set(dht_event_base, &rpc->ev_cb);
     timerclear(&tv);
     tv.tv_sec = DHT_RPC_TIMEOUT;
     evtimer_add(&rpc->ev_cb, &tv);

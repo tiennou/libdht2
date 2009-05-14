@@ -209,7 +209,7 @@ struct kad_ctx_lookup {
 /* Prototypes */
 
 /* Returns a DHT node that uses Kademlia as DHT protocol */
-struct dht_node * kad_make_dht(uint16_t port);
+struct kad_node * kad_make_dht(const char *addr, uint16_t port);
 
 struct kad_node_id * kad_node_id_new(struct addr *addr,
                                      u_short      port,
@@ -251,7 +251,7 @@ int kad_node_lookup(struct kad_nodeidq *nodes,
 
 struct kad_node * kad_node_new(struct dht_node *dht);
 
-int kad_node_set_address(struct kad_node *node, char *host, uint16_t port);
+int kad_node_set_address(struct kad_node *node, const char *host, uint16_t port);
 
 int kad_node_insert(struct kad_node *node,
                     struct addr *    addr,

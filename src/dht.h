@@ -38,6 +38,7 @@
 #include <openssl/sha.h>
 
 #include <event.h>
+#include <event2/bufferevent.h>
 
 #include <dnet.h>
 
@@ -69,10 +70,20 @@ struct dht_message {
 
     struct addr        dst;
     uint16_t           port;
-    uint16_t           type;
 
-    struct evbuffer *  buffer;
+    size_t             datlen;
+    char             * data;
 };
+
+struct dht_filter {
+    TAILQ_ENTRY(dht_filter) next;
+    
+    char *filter_name;
+    struct bufferevent *ev_filter;
+};
+
+/* TODO: Get rid of this */
+extern struct event_base *dht_event_base;
 
 typedef void (*dht_readcb)(struct dht_message *msg, void *arg);
 typedef void (*dht_writecb)(struct dht_message *msg, void *arg);
@@ -191,8 +202,11 @@ struct dht_type_callback {
 struct dht_node {
     int             fd; /* our bound socket */
 
-    struct event    ev_read;
-    struct event    ev_write;
+    struct event_base   * ev_base;
+    struct event   * ev_read;
+    struct event   * ev_write;
+    
+    struct bufferevent * ev_pair[2];
 
     uint16_t        dht_type; /* the type of DHT we are running */
 
@@ -210,17 +224,25 @@ struct dht_node {
 
     /* Messages we are waiting for to be sent */
     TAILQ_HEAD(messageq, dht_message) messages;
+    
+    /* Filters on input / output */
+    TAILQ_HEAD(filters, dht_filter) filters;
 };
 
 void dht_init();
 
-struct dht_node * dht_new(uint16_t port);
+struct dht_node * dht_new(const char *addr, uint16_t port);
 
 void dht_free(struct dht_node * node);
 
 void dht_set_impl(struct                      dht_node *,
                   const struct dht_callbacks *impl_cbs,
                   void *                      impl_arg);
+void
+dht_add_filter(struct dht_node *node,
+               const char *filter_name,
+               bufferevent_filter_cb input_filter,
+               bufferevent_filter_cb output_filter);
 
 char * dht_node_id_ascii(u_char *id);
 

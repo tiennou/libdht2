@@ -59,7 +59,7 @@ Test_One_Ping_Reply(struct dht_rpc *rpc, struct evbuffer *evbuf, void *arg)
     if (evbuf == NULL)
         fprintf(stderr, "\t%s: Timeout\n", __func__);
     if (++test_one_count == 2)
-        event_loopexit(NULL);
+        event_base_loopexit(dht_event_base, NULL);
 }
 
 void
@@ -73,7 +73,7 @@ Test_One_Sub(struct kad_node *node_kad, struct kad_node *two_node_kad)
     kad_rpc_ping(two_node_kad, &node_kad->myself,
                  Test_One_Ping_Reply, NULL);
 
-    event_dispatch();
+    event_base_dispatch(dht_event_base);
 }
 
 void
@@ -129,7 +129,7 @@ Test_Two_Find_Node_Reply(struct dht_rpc * rpc,
                 distance);
     }
 
-    event_loopexit(NULL);
+    event_base_loopexit(dht_event_base, NULL);
 }
 
 void
@@ -143,7 +143,7 @@ Test_Two(struct kad_node *node_kad, struct kad_node *two_node_kad)
                       node_kad->myself.id,
                       Test_Two_Find_Node_Reply, node_kad);
 
-    event_dispatch();
+    event_base_dispatch(dht_event_base);
 
     fprintf(stderr, "\t%s: OK\n", __func__);
 }
@@ -160,7 +160,7 @@ Test_Three_Cb(struct kad_nodeidq *nodes, void *arg)
 
     /* Leaking memory */
 
-    event_loopexit(NULL);
+    event_base_loopexit(dht_event_base, NULL);
 }
 
 void
@@ -168,7 +168,7 @@ Test_Three(struct kad_node *node)
 {
     kad_impl_lookup(node, node->myself.id, Test_Three_Cb, NULL);
 
-    event_dispatch();
+    event_base_dispatch(dht_event_base);
 }
 
 void
@@ -183,7 +183,7 @@ Test_Four_Cb(void *arg)
 
     assert(node->bucket_root->num_subtree_nodes > 30);
 
-    event_loopexit(NULL);
+    event_base_loopexit(dht_event_base, NULL);
 }
 
 /* This is almost like a join */
@@ -193,7 +193,7 @@ Test_Four(struct kad_node *node)
 {
     kad_node_refresh_all_buckets(node, NULL, Test_Four_Cb, node);
 
-    event_dispatch();
+    event_base_dispatch(dht_event_base);
 }
 
 void
@@ -220,13 +220,13 @@ Test_Five(struct kad_node *node, struct addr *addr, uint16_t port)
 
     assert(kad_impl_join(node, addr, port, Test_Five_Cb, node) != -1);
 
-    event_dispatch();
+    event_base_dispatch(dht_event_base);
 }
 
 void
 Test_Six_Cb(int res, void *arg)
 {
-    event_loopexit(NULL);
+    event_base_loopexit(dht_event_base, NULL);
 }
 
 void
@@ -243,7 +243,7 @@ Test_Six(struct kad_node *node, char *text)
     assert(kad_impl_store(node, digest, (u_char*)text, strlen(text) + 1,
                           Test_Six_Cb, NULL) != -1);
 
-    event_dispatch();
+    event_base_dispatch(dht_event_base);
 }
 
 void
@@ -257,7 +257,7 @@ Test_Seven_Cb(u_char *data, size_t datlen, void *arg)
     /* So that our caching store can make progress */
     timerclear(&tv);
     tv.tv_sec = 3;
-    event_loopexit(&tv);
+    event_base_loopexit(dht_event_base, &tv);
 }
 
 void
@@ -273,7 +273,7 @@ Test_Seven(struct kad_node *node, char *text)
 
     assert(kad_impl_find_value(node, digest, Test_Seven_Cb, NULL) != -1);
 
-    event_dispatch();
+    event_base_dispatch(dht_event_base);
 }
 
 struct kad_node *
@@ -281,7 +281,7 @@ new_node(uint16_t port)
 {
     extern struct dht_callbacks kad_dht_callbacks;
 
-    struct dht_node *dht = dht_new(port);
+    struct dht_node *dht = dht_new("0.0.0.0", port);
     struct kad_node *node = kad_node_new(dht);
 
     dht_set_impl(dht, /*DHT_TYPE_KADEMLIA,*/ &kad_dht_callbacks, node);
@@ -331,7 +331,7 @@ main(int argc, char **argv)
 
     /* Set up the nodes */
     for (i = 0; i < KAD_NODES; ++i) {
-        node[i] = new_node(port_base + i);
+        node[i] = kad_make_dht("127.0.0.1", port_base + i);
     }
 
     Test_One(node, KAD_NODES);
@@ -350,8 +350,9 @@ main(int argc, char **argv)
     for (i = 0; i < 5; ++i)
         Test_Four(node[50 + i]);
 
-    new_node_one = new_node(port_base + KAD_NODES + 1);
-    new_node_two = new_node(port_base + KAD_NODES + 2);
+    new_node_one = kad_make_dht("127.0.0.1", port_base + KAD_NODES + 1);
+    new_node_two = kad_make_dht("127.0.0.1", 
+                                port_base + KAD_NODES + 2);
 
     /* Now, let a new node join the network */
     Test_Five(new_node_one, &node[0]->myself.addr, node[0]->myself.port);

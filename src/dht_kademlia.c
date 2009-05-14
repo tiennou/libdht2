@@ -568,6 +568,7 @@ kad_node_new(struct dht_node *dht)
         err(1, "%s: calloc", __func__);
 
     evtimer_set(&node->ev_refresh, kad_node_timer_cb, node);
+    event_base_set(dht_event_base, &node->ev_refresh);
     timerclear(&tv);
     tv.tv_sec = KAD_BUCKET_REFRESH_CHECK;
     evtimer_add(&node->ev_refresh, &tv);
@@ -580,7 +581,7 @@ kad_node_new(struct dht_node *dht)
  */
 
 int
-kad_node_set_address(struct kad_node *node, char *host, uint16_t port)
+kad_node_set_address(struct kad_node *node, const char *host, uint16_t port)
 {
     if (addr_pton(host, &node->myself.addr) == -1)
         return -1;
@@ -1388,7 +1389,7 @@ kad_read_cb(struct dht_message *msg,
 {
     static struct evbuffer *buf;
     struct kad_node *node = arg;
-    struct kad_pkt *hdr = (struct kad_pkt *)EVBUFFER_DATA(msg->buffer);
+    struct kad_pkt *hdr = (struct kad_pkt *)msg->data;
     struct dht_rpc *rpc;
     int noinsert = 0;
 
@@ -1398,7 +1399,7 @@ kad_read_cb(struct dht_message *msg,
             err(1, "%s: calloc", __func__);
     }
 
-    if (EVBUFFER_LENGTH(msg->buffer) < sizeof(struct kad_pkt)) {
+    if (msg->datlen < sizeof(struct kad_pkt)) {
         DFPRINTF(3, (stderr,
                      "%s: received short KAD packet from %s:%d\n",
                      __func__, addr_ntoa(addr), port));
@@ -1451,7 +1452,7 @@ kad_read_cb(struct dht_message *msg,
             DHT_KAD_REPLY(rpc->rpc_command) == hdr->rpc_command) {
             if (rpc->cb) {
                 evbuffer_drain(buf, -1);
-                evbuffer_add_buffer(buf, msg->buffer);
+                evbuffer_add(buf, msg->data, msg->datlen);
                 (*rpc->cb)(rpc, buf, rpc->cb_arg);
             }
             dht_rpc_remove(&node->rpcs, rpc);
@@ -1494,13 +1495,13 @@ kad_read_cb(struct dht_message *msg,
                         );
             break;
             case DHT_KAD_RPC_STORE:
-                kad_rpc_handle_store(node, &msg->dst, msg->port, hdr, EVBUFFER_LENGTH(msg->buffer));
+                kad_rpc_handle_store(node, &msg->dst, msg->port, hdr, msg->datlen);
                 break;
             case DHT_KAD_RPC_FIND_NODE:
-                kad_rpc_handle_find_node(node, &msg->dst, msg->port, hdr, EVBUFFER_LENGTH(msg->buffer));
+                kad_rpc_handle_find_node(node, &msg->dst, msg->port, hdr, msg->datlen);
                 break;
             case DHT_KAD_RPC_FIND_VALUE:
-                kad_rpc_handle_find_value(node, &msg->dst, msg->port, hdr, EVBUFFER_LENGTH(msg->buffer));
+                kad_rpc_handle_find_value(node, &msg->dst, msg->port, hdr, msg->datlen);
                 break;
         }
         default:
@@ -1844,6 +1845,7 @@ kad_send_rpc(struct kad_node *node,
     size_t pktlen = sizeof(struct kad_pkt) + payload_len;
     struct kad_pkt *pkt;
     int need_rpc = DHT_KAD_REPLY(command) != command;
+    int res;
 
     if (dht_kademlia_compare(id->id, node->myself.id) == 0) {
         /* Do not send RPCs to ourselves */
@@ -1878,10 +1880,11 @@ kad_send_rpc(struct kad_node *node,
     if (payload_len)
         memcpy((u_char *)(pkt + 1), payload, payload_len);
 
-    dht_send(node->dht, &id->addr, id->port, 
-             (u_char *)pkt, pktlen);
-
-    return 0;
+    res = dht_send(node->dht, &id->addr, id->port, 
+                   (u_char *)pkt, pktlen);
+    
+    free(pkt);
+    return res;
 }
 
 void
@@ -2138,17 +2141,17 @@ kad_nodeidq_to_dht_nodeids(struct dht_node_id **pids,
 
 /* Return a fully instantiated DHT object */
 
-struct dht_node *
-kad_make_dht(uint16_t port)
+struct kad_node *
+kad_make_dht(const char *addr, uint16_t port)
 {
-    struct dht_node *dht = dht_new(port);
+    struct dht_node *dht = dht_new(addr, port);
     struct kad_node *node = kad_node_new(dht);
 
     dht_set_impl(dht, &kad_dht_callbacks, node);
 
     /* Usually, we do not have to do that */
-    kad_node_set_address(node, "127.0.0.1", port);
+    kad_node_set_address(node, addr, port);
 
-    return dht;
+    return node;
 }
 
